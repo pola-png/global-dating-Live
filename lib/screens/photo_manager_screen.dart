@@ -241,7 +241,7 @@ class _PhotoManagerScreenState extends State<PhotoManagerScreen> {
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
             child: CachedNetworkImage(
-              imageUrl: _photos[index],
+              imageUrl: StorageService.buildFileUrl(_photos[index]),
               width: double.infinity,
               height: double.infinity,
               fit: BoxFit.cover,

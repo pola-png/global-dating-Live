@@ -30,7 +30,9 @@ class AvatarWidget extends StatelessWidget {
             radius: radius,
             backgroundColor: Theme.of(context).primaryColor,
             backgroundImage: (photos != null && photos!.isNotEmpty)
-                ? CachedNetworkImageProvider(photos!.first)
+                ? CachedNetworkImageProvider(
+                    StorageService.buildFileUrl(photos!.first),
+                  )
                 : (avatarUrl != null && avatarUrl!.isNotEmpty
                     ? CachedNetworkImageProvider(
                         StorageService.getAvatarUrl(avatarUrl, avatarLetter),
