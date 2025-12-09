@@ -38,13 +38,6 @@ class _CreatePostState extends State<CreatePost> {
   @override
   void initState() {
     super.initState();
-    _focusNode.addListener(() {
-      if (!mounted) return;
-      setState(() {
-        _isExpanded =
-            _focusNode.hasFocus || _textController.text.trim().isNotEmpty;
-      });
-    });
     _textController.addListener(() {
       setState(() {}); // Rebuild to update button state
     });

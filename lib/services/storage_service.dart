@@ -6,7 +6,14 @@ import 'appwrite_service.dart';
 
 class StorageService {
   static String buildFileUrl(String fileId) {
-    final base = AppwriteConfig.endpoint.replaceFirst(RegExp(r'/v1/?$'), '');
+    // Support endpoints with or without `/v1` and trailing slash.
+    var base = AppwriteConfig.endpoint.trim();
+    // Remove trailing slashes
+    base = base.replaceFirst(RegExp(r'/+$'), '');
+    // Ensure we have `/v1` at the end
+    if (!base.endsWith('/v1')) {
+      base = '$base/v1';
+    }
     return '$base/storage/buckets/${AppwriteConfig.mediaBucketId}/files/$fileId/view?project=${AppwriteConfig.projectId}';
   }
 

@@ -198,6 +198,24 @@ class _ManagePhotosScreenState extends State<ManagePhotosScreen> {
         fileId: fileId,
       );
 
+      // Remove any feed posts that referenced this photo
+      final postsRes = await AppwriteService.databases.listDocuments(
+        databaseId: AppwriteConfig.databaseId,
+        collectionId: AppwriteConfig.postsCollectionId,
+        queries: [
+          Query.equal('authorId', userId),
+          Query.equal('photoPath', fileId),
+        ],
+      );
+
+      for (final doc in postsRes.documents) {
+        await AppwriteService.databases.deleteDocument(
+          databaseId: AppwriteConfig.databaseId,
+          collectionId: AppwriteConfig.postsCollectionId,
+          documentId: doc.$id,
+        );
+      }
+
       await AppwriteService.databases.updateDocument(
         databaseId: AppwriteConfig.databaseId,
         collectionId: AppwriteConfig.profilesCollectionId,
