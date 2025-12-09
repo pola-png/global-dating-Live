@@ -39,8 +39,10 @@ class _CreatePostState extends State<CreatePost> {
   void initState() {
     super.initState();
     _focusNode.addListener(() {
+      if (!mounted) return;
       setState(() {
-        _isExpanded = _focusNode.hasFocus;
+        _isExpanded =
+            _focusNode.hasFocus || _textController.text.trim().isNotEmpty;
       });
     });
     _textController.addListener(() {
@@ -196,6 +198,11 @@ class _CreatePostState extends State<CreatePost> {
                     child: TextField(
                       controller: _textController,
                       focusNode: _focusNode,
+                      onTap: () {
+                        if (!_isExpanded) {
+                          setState(() => _isExpanded = true);
+                        }
+                      },
                       maxLines: _isExpanded ? 5 : 1,
                       minLines: _isExpanded ? 3 : 1,
                       textAlign: TextAlign.center,

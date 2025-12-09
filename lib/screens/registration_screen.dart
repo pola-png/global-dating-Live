@@ -171,7 +171,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: Theme.of(context).colorScheme.background,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
@@ -200,20 +200,20 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      const Text(
+                      Text(
                         'Create an Account',
                         style: TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF333333),
+                          color: Theme.of(context).colorScheme.onBackground,
                         ),
                       ),
                       const SizedBox(height: 8),
-                      const Text(
+                      Text(
                         'Join our global community and find your connection.',
                         style: TextStyle(
                           fontSize: 16,
-                          color: Color(0xFF666666),
+                          color: Theme.of(context).textTheme.bodyMedium?.color,
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -543,7 +543,9 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 onTap: () => Navigator.pushNamed(context, '/policy'),
                 child: RichText(
                   text: TextSpan(
-                    style: const TextStyle(color: Color(0xFF333333)),
+                    style: TextStyle(
+                      color: Theme.of(context).textTheme.bodyMedium?.color,
+                    ),
                     children: [
                       const TextSpan(text: 'I am 18+ and accept the '),
                       TextSpan(

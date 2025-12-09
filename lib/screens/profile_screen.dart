@@ -341,16 +341,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(24),
-            color: Colors.grey[50],
+            color: Theme.of(context).colorScheme.surface,
             child: Column(
               children: [
                 Text(
                   _isOwnProfile 
                       ? 'This is how others see you.' 
                       : 'View $firstName\'s profile.',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
-                    color: Color(0xFF666666),
+                    color: Theme.of(context).textTheme.bodyMedium?.color,
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -365,10 +365,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const SizedBox(height: 16),
                 Text(
                   _profile!['fullName'] ?? 'Unknown User',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF333333),
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 if (isVerified || boostActive)
@@ -410,7 +410,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         width: double.infinity,
                         child: OutlinedButton.icon(
                           onPressed: () => Navigator.pushNamed(context, '/coins'),
-                          icon: const Icon(LucideIcons.badgeDollarSign, color: Colors.green),
+                          icon: Icon(
+                            LucideIcons.badgeDollarSign,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
                           label: Text('Buy Coins ($_coinBalance)'),
                         ),
                       ),
@@ -466,23 +469,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Row(
+                        Row(
                           children: [
-                            Icon(LucideIcons.user, color: Color(0xFF666666)),
-                            SizedBox(width: 8),
+                            Icon(
+                              LucideIcons.user,
+                              color: Theme.of(context).iconTheme.color,
+                            ),
+                            const SizedBox(width: 8),
                             Text(
                               'About Me',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
                             ),
                           ],
                         ),
                         const SizedBox(height: 12),
                         Text(
                           _profile!['about'] ?? 'No bio available',
-                          style: const TextStyle(fontSize: 16),
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 16),
                         ),
                       ],
                     ),
@@ -496,16 +501,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Row(
+                        Row(
                           children: [
-                            Icon(LucideIcons.list, color: Color(0xFF666666)),
-                            SizedBox(width: 8),
+                            Icon(
+                              LucideIcons.list,
+                              color: Theme.of(context).iconTheme.color,
+                            ),
+                            const SizedBox(width: 8),
                             Text(
                               'Details',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
                             ),
                           ],
                         ),
@@ -524,16 +531,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Row(
+                          Row(
                             children: [
-                              Icon(LucideIcons.image, color: Color(0xFF666666)),
-                              SizedBox(width: 8),
+                              Icon(
+                                LucideIcons.image,
+                                color: Theme.of(context).iconTheme.color,
+                              ),
+                              const SizedBox(width: 8),
                               Text(
                                 'My Gallery',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                    ),
                               ),
                             ],
                           ),
@@ -736,7 +745,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             Icon(
               detail['icon'] as IconData,
-              color: const Color(0xFF666666),
+              color: Theme.of(context).iconTheme.color,
               size: 20,
             ),
             const SizedBox(width: 8),

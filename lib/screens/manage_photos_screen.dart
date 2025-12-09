@@ -112,7 +112,7 @@ class _ManagePhotosScreenState extends State<ManagePhotosScreen> {
         documentId: ID.unique(),
         data: {
           'authorId': userId,
-          'text': 'Updated profile photo',
+          'text': '',
           'backgroundColor': 'white',
           'textColor': '#000000',
           'isCentered': false,

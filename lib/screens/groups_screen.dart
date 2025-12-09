@@ -240,15 +240,15 @@ class _GroupsScreenState extends State<GroupsScreen> {
           // Header
           Container(
             padding: const EdgeInsets.all(16),
-            color: Colors.grey[50],
+            color: Theme.of(context).colorScheme.surface,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Find your community and connect with people from your country.',
                   style: TextStyle(
                     fontSize: 16,
-                    color: Color(0xFF666666),
+                    color: Theme.of(context).textTheme.bodyMedium?.color,
                   ),
                 ),
                 const SizedBox(height: 16),

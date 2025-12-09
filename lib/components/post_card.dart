@@ -4,6 +4,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 
 import '../config/appwrite_config.dart';
 import '../services/appwrite_service.dart';
+import '../services/storage_service.dart';
 
 class PostCard extends StatefulWidget {
   final Map<String, dynamic> post;
@@ -261,9 +262,14 @@ class _PostCardState extends State<PostCard> {
                         child: CircleAvatar(
                           radius: 20,
                           backgroundColor: Theme.of(context).primaryColor,
-                          backgroundImage: (author['photos'] != null && (author['photos'] as List).isNotEmpty)
-                              ? NetworkImage((author['photos'] as List).first)
-                              : null,
+                          backgroundImage:
+                              (author['photos'] != null && (author['photos'] as List).isNotEmpty)
+                                  ? NetworkImage(
+                                      StorageService.buildFileUrl(
+                                        (author['photos'] as List).first as String,
+                                      ),
+                                    )
+                                  : null,
                           child: (author['photos'] == null || (author['photos'] as List).isEmpty)
                               ? Text(
                                   author['avatarLetter'] ?? 'U',
@@ -361,13 +367,15 @@ class _PostCardState extends State<PostCard> {
               ),
             ),
             // Content - Photo or Text
-            if (widget.post['type'] == 'photo_post' && widget.post['photoUrl'] != null)
+            if (widget.post['type'] == 'photo_post' &&
+                widget.post['photoPath'] != null &&
+                (widget.post['photoPath'] as String).isNotEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(8),
                   child: Image.network(
-                          widget.post['photoUrl'],
+                          StorageService.buildFileUrl(widget.post['photoPath'] as String),
                     width: double.infinity,
                     fit: BoxFit.cover,
                   ),

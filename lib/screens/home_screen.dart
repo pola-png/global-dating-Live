@@ -124,13 +124,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _loadMorePosts() {
     if (_allPosts.isEmpty) return;
+    if (_posts.length >= _allPosts.length) return;
     setState(() {
-      if (_posts.length >= _allPosts.length) {
-        _posts.addAll(_allPosts);
-      } else {
-        final nextBatch = _allPosts.skip(_posts.length).take(10);
-        _posts.addAll(nextBatch);
-      }
+      final nextBatch = _allPosts.skip(_posts.length).take(10);
+      _posts.addAll(nextBatch);
     });
   }
 
