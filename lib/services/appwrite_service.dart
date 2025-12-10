@@ -19,15 +19,10 @@ class SessionStore {
   static String? get userId => _userId;
 
   static Future<String?> ensureUserId() async {
-    if (_userId != null) return _userId;
-    try {
-      final user = await AppwriteService.account.get();
-      _userId = user.$id;
-      return _userId;
-    } catch (_) {
-      _userId = null;
-      return null;
-    }
+    // Do not hit the network automatically.
+    // Until login/registration explicitly sets the user ID,
+    // treat the visitor as a guest.
+    return _userId;
   }
 
   static void setUserId(String? id) {
@@ -35,11 +30,10 @@ class SessionStore {
   }
 
   static Future<void> refresh() async {
-    await ensureUserId();
+    // No automatic network call here; left as a no-op for now.
   }
 
   static void clear() {
     _userId = null;
   }
 }
-
