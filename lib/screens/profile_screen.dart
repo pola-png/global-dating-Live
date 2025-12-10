@@ -192,8 +192,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (!success) {
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Not enough coins to boost (50 coins needed).')),
+        const SnackBar(
+          content: Text('Not enough coins to boost (50 coins needed). Redirecting to Buy Coins...'),
+        ),
       );
+      Navigator.pushNamed(context, '/coins');
       return;
     }
 
