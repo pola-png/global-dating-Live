@@ -27,13 +27,15 @@ void main() async {
 
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
-  // Try to restore current user (if a session exists).
-  await SessionStore.refresh();
-
   final prefs = await SharedPreferences.getInstance();
   final bool isOfAge = prefs.getBool('is_of_age') ?? false;
 
   runApp(MainApp(isOfAge: isOfAge));
+
+  // Optionally refresh session in the background (non-blocking).
+  // This will set SessionStore.userId if a valid session cookie exists.
+  // ignore: discarded_futures
+  SessionStore.refresh();
 }
 
 class MainApp extends StatelessWidget {

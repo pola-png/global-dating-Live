@@ -38,8 +38,85 @@
       window.location.href = "https://www.globaldatingchat.online" + window.location.pathname + window.location.search + window.location.hash;
     }
   </script>
+
+  <style>
+    #install-banner {
+      position: fixed;
+      left: 16px;
+      right: 16px;
+      bottom: 16px;
+      z-index: 9999;
+      background: #111827;
+      color: #f9fafb;
+      border-radius: 12px;
+      padding: 12px 16px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+      display: none;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    #install-banner button {
+      margin-left: 12px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: none;
+      background: #6366f1;
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+    }
+  </style>
+
+  <script>
+    // Custom "Add to Home Screen" prompt for mobile web only.
+    (function() {
+      let deferredPrompt = null;
+
+      function isStandalone() {
+        return window.matchMedia('(display-mode: standalone)').matches ||
+               window.navigator.standalone === true;
+      }
+
+      function isMobile() {
+        const ua = navigator.userAgent || navigator.vendor || window.opera;
+        return /android|iphone|ipad|ipod/i.test(ua);
+      }
+
+      window.addEventListener('beforeinstallprompt', function(e) {
+        if (!isMobile() || isStandalone() || localStorage.getItem('gdc_pwa_prompt_shown') === '1') {
+          return;
+        }
+        e.preventDefault();
+        deferredPrompt = e;
+
+        const banner = document.getElementById('install-banner');
+        if (!banner) return;
+        banner.style.display = 'flex';
+
+        const installBtn = document.getElementById('install-banner-install');
+
+        installBtn.onclick = async function() {
+          if (!deferredPrompt) return;
+          deferredPrompt.prompt();
+          const choice = await deferredPrompt.userChoice;
+          deferredPrompt = null;
+          banner.style.display = 'none';
+          // Only remember the prompt if user accepted or dismissed via browser dialog.
+          if (choice && choice.outcome !== 'dismissed') {
+            localStorage.setItem('gdc_pwa_prompt_shown', '1');
+          }
+        };
+
+      });
+    })();
+  </script>
 </head>
 <body>
+  <div id="install-banner">
+    <div style="flex:1;">
+      Add Global Dating Chat to your home screen for faster access.
+    </div>
+    <button id="install-banner-install">Add</button>
+  </div>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
