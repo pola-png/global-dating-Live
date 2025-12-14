@@ -1,6 +1,5 @@
 [build]
   publish = "build/web"
-  command = "chmod +x build.sh && ./build.sh"
 
 [build.environment]
   NODE_VERSION = "18"
