@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://www.globaldatingchat.online/sitemap.xml
+

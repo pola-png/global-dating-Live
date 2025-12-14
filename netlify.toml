@@ -1,5 +1,6 @@
 [build]
   publish = "build/web"
+  command = "echo 'Using pre-built files'"
 
 [build.environment]
   NODE_VERSION = "18"
