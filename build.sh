@@ -1,15 +1,15 @@
 #!/bin/bash
 set -e
 
-# Install Flutter
-wget -O flutter.tar.xz https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_3.24.3-stable.tar.xz
+# Install Flutter 3.27.1 (latest stable with Dart 3.6+)
+wget -O flutter.tar.xz https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_3.27.1-stable.tar.xz
 tar -xf flutter.tar.xz
 export PATH="$PATH:$PWD/flutter/bin"
 
 # Configure Flutter
 flutter config --no-analytics
-flutter doctor
+flutter config --enable-web
 
-# Build web
+# Build web (skip doctor check)
 flutter pub get
-flutter build web --release
+flutter build web --release --web-renderer html
