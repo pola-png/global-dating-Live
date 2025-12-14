@@ -4,6 +4,8 @@
 
 [build.environment]
   NODE_VERSION = "18"
+  APPWRITE_ENDPOINT = "https://nyc.cloud.appwrite.io/v1"
+  APPWRITE_PROJECT_ID = "69384bc2002e7f635849"
 
 [[redirects]]
   from = "/*"
