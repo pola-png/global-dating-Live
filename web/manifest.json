@@ -1,11 +1,11 @@
 {
-    "name": "global_dating_chat",
-    "short_name": "global_dating_chat",
+    "name": "Global Dating Chat",
+    "short_name": "Global Dating Chat",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Connect with people worldwide",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

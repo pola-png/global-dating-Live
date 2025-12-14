@@ -5,6 +5,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 
 import '../config/appwrite_config.dart';
 import '../services/appwrite_service.dart';
+import '../services/push_registration_service.dart';
 
 class RegistrationScreen extends StatefulWidget {
   const RegistrationScreen({super.key});
@@ -132,6 +133,9 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       );
 
       if (mounted) {
+        // Best-effort: register this device for push notifications.
+        // ignore: discarded_futures
+        PushRegistrationService.registerForPush();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Account created successfully!'),

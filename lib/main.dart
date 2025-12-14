@@ -21,6 +21,10 @@ import 'screens/policy_screen.dart';
 import 'screens/coin_purchase_screen.dart';
 import 'screens/video_call_screen.dart';
 import 'screens/fast_match_screen.dart';
+import 'screens/get_android_app_screen.dart';
+import 'services/realtime_notification_service.dart';
+
+final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,6 +35,7 @@ void main() async {
   final bool isOfAge = prefs.getBool('is_of_age') ?? false;
 
   runApp(MainApp(isOfAge: isOfAge));
+  _startRealtimeNotifications();
 
   // Optionally refresh session in the background (non-blocking).
   // This will set SessionStore.userId if a valid session cookie exists.
@@ -47,6 +52,7 @@ class MainApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Global Dating Chat',
+      navigatorKey: _navigatorKey,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.system,
@@ -86,6 +92,7 @@ class MainApp extends StatelessWidget {
         '/coins': (context) => const CoinPurchaseScreen(),
         '/video-call': (context) => const VideoCallScreen(),
         '/fast-match': (context) => const FastMatchScreen(),
+        '/get-android-app': (context) => const GetAndroidAppScreen(),
       },
       onGenerateRoute: (settings) {
         if (settings.name?.startsWith('/groups/') == true) {
@@ -122,6 +129,14 @@ class MainApp extends StatelessWidget {
       },
     );
   }
+}
+
+// Start simple in-app realtime notifications once the widget tree is ready.
+// This shows a small SnackBar when new messages are created while the app is open.
+void _startRealtimeNotifications() {
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    RealtimeNotificationService.start(_navigatorKey);
+  });
 }
 
 class _SmoothScrollBehavior extends ScrollBehavior {

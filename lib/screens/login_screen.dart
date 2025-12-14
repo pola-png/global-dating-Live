@@ -2,6 +2,7 @@ import 'package:appwrite/appwrite.dart';
 import 'package:flutter/material.dart';
 
 import '../services/appwrite_service.dart';
+import '../services/push_registration_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -38,6 +39,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
       final user = await account.get();
       SessionStore.setUserId(user.$id);
+      // Best-effort: register this device for push notifications.
+      // ignore: discarded_futures
+      PushRegistrationService.registerForPush();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

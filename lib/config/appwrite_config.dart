@@ -20,6 +20,7 @@ class AppwriteConfig {
   static const String messagesCollectionId = 'messages';
   static const String chatRoomsCollectionId = 'chatrooms';
   static const String liveStreamsCollectionId = 'livestreams';
+  static const String liveMessagesCollectionId = 'livemessages';
   static const String groupMetadataCollectionId = 'groupmetadata';
   static const String blockedUsersCollectionId = 'blockedusers';
   static const String reportsCollectionId = 'reports';

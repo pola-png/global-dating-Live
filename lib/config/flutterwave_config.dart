@@ -14,11 +14,11 @@ class FlutterwaveConfig {
   // Optional: hosted payment links per coin package.
   // Create payment links in your Flutterwave dashboard and paste them here.
   static const Map<int, String> hostedPaymentLinks = {
-    // 60: 'https://checkout.flutterwave.com/v3/hosted/pay/your_link_for_60',
-    // 400: 'https://checkout.flutterwave.com/v3/hosted/pay/your_link_for_400',
-    // 1000: 'https://checkout.flutterwave.com/v3/hosted/pay/your_link_for_1000',
-    // 5000: 'https://checkout.flutterwave.com/v3/hosted/pay/your_link_for_5000',
-    // 10000: 'https://checkout.flutterwave.com/v3/hosted/pay/your_link_for_10000',
+    60: 'https://flutterwave.com/pay/rujbo8xc4whw',
+    400: 'https://flutterwave.com/pay/qu6rfqknnphx',
+    1000: 'https://flutterwave.com/pay/hizvj4r8s3pm',
+    5000: 'https://flutterwave.com/pay/hikdcwkglncz',
+    10000: 'https://flutterwave.com/pay/sadj3pd9qk1c',
   };
 
   // Optional: hosted payment link for fast matchmaking ($50).

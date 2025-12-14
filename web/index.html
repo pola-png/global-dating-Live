@@ -1,165 +1,50 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
   <base href="$FLUTTER_BASE_HREF">
-
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
-  <meta name="google-site-verification" content="G3VNBiPCW9LF5e_7wcqyzh2wIXS1cGGeNCeiZ7Q9OnA" />
-
-  <!-- iOS meta tags & icons -->
-  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="description" content="Global Dating Chat - Connect with people worldwide">
+  <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="global_dating_chat">
+  <meta name="apple-mobile-web-app-title" content="Global Dating Chat">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
-
-  <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
-
-  <title>global_dating_chat</title>
+  <title>Global Dating Chat</title>
   <link rel="manifest" href="manifest.json">
-
   <script>
-    if (window.location.hostname === "globaldatingchat.online") {
-      window.location.href = "https://www.globaldatingchat.online" + window.location.pathname + window.location.search + window.location.hash;
-    }
-  </script>
-
-  <style>
-    #install-banner {
-      position: fixed;
-      left: 16px;
-      right: 16px;
-      bottom: 16px;
-      z-index: 9999;
-      background: #111827;
-      color: #f9fafb;
-      border-radius: 12px;
-      padding: 12px 16px;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
-      display: none;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    }
-    #install-banner button {
-      margin-left: 12px;
-      padding: 6px 12px;
-      border-radius: 999px;
-      border: none;
-      background: #6366f1;
-      color: #fff;
-      font-weight: 600;
-      cursor: pointer;
-    }
-    /* Simple initial splash while Flutter loads */
-    #splash {
-      position: fixed;
-      inset: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      background: #020617;
-      color: #f9fafb;
-      z-index: 9998;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    }
-    #splash-title {
-      font-size: 20px;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-    }
-    #splash-spinner {
-      margin-top: 16px;
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      border: 3px solid rgba(248, 250, 252, 0.2);
-      border-top-color: #f9fafb;
-      animation: splash-spin 0.8s linear infinite;
-    }
-    @keyframes splash-spin {
-      to {
-        transform: rotate(360deg);
+    var serviceWorkerVersion = null;
+    var scriptLoaded = false;
+    function loadMainDartJs() {
+      if (scriptLoaded) {
+        return;
       }
+      scriptLoaded = true;
+      var scriptTag = document.createElement('script');
+      scriptTag.src = 'main.dart.js';
+      scriptTag.type = 'application/javascript';
+      document.body.append(scriptTag);
     }
-  </style>
 
-  <script>
-    // Custom "Add to Home Screen" prompt for mobile web only.
-    (function() {
-      let deferredPrompt = null;
-
-      function isStandalone() {
-        return window.matchMedia('(display-mode: standalone)').matches ||
-               window.navigator.standalone === true;
-      }
-
-      function isMobile() {
-        const ua = navigator.userAgent || navigator.vendor || window.opera;
-        return /android|iphone|ipad|ipod/i.test(ua);
-      }
-
-      window.addEventListener('beforeinstallprompt', function(e) {
-        if (!isMobile() || isStandalone() || localStorage.getItem('gdc_pwa_prompt_shown') === '1') {
-          return;
+    if ('serviceWorker' in navigator) {
+      serviceWorkerVersion = '1';
+      navigator.serviceWorker.register('flutter_service_worker.js?v=' + serviceWorkerVersion);
+    }
+    window.addEventListener('load', function(ev) {
+      _flutter.loader.loadEntrypoint({
+        serviceWorker: {
+          serviceWorkerVersion: serviceWorkerVersion,
+        },
+        onEntrypointLoaded: function(engineInitializer) {
+          engineInitializer.initializeEngine().then(function(appRunner) {
+            appRunner.runApp();
+          });
         }
-        e.preventDefault();
-        deferredPrompt = e;
-
-        const banner = document.getElementById('install-banner');
-        if (!banner) return;
-        banner.style.display = 'flex';
-
-        const installBtn = document.getElementById('install-banner-install');
-
-        installBtn.onclick = async function() {
-          if (!deferredPrompt) return;
-          deferredPrompt.prompt();
-          const choice = await deferredPrompt.userChoice;
-          deferredPrompt = null;
-          banner.style.display = 'none';
-          // Only remember the prompt if user accepted or dismissed via browser dialog.
-          if (choice && choice.outcome !== 'dismissed') {
-            localStorage.setItem('gdc_pwa_prompt_shown', '1');
-          }
-        };
-
       });
-    })();
+    });
   </script>
 </head>
 <body>
-  <div id="splash">
-    <div id="splash-title">Global Dating Chat</div>
-    <div id="splash-spinner"></div>
-  </div>
-  <div id="install-banner">
-    <div style="flex:1;">
-      Add Global Dating Chat to your home screen for faster access.
-    </div>
-    <button id="install-banner-install">Add</button>
-  </div>
-  <script>
-    // Hide splash once Flutter has rendered the first frame.
-    window.addEventListener('flutter-first-frame', function () {
-      var splash = document.getElementById('splash');
-      if (splash) splash.style.display = 'none';
-    });
-  </script>
-  <script src="flutter_bootstrap.js" async></script>
+  <script src="flutter.js" defer></script>
 </body>
 </html>

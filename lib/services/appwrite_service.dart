@@ -11,6 +11,7 @@ class AppwriteService {
   static final Databases databases = Databases(client);
   static final Storage storage = Storage(client);
   static final Realtime realtime = Realtime(client);
+  static final Messaging messaging = Messaging(client);
 }
 
 class SessionStore {

@@ -40,7 +40,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         return;
       }
 
-      final targetUserId = widget.userId ?? currentUserId;
+      final targetUserId =
+          widget.userId == null ? currentUserId : widget.userId!;
       _isOwnProfile = targetUserId == currentUserId;
 
       final doc = await AppwriteService.databases.getDocument(
@@ -84,9 +85,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               'lookingFor': '',
               'relationshipStatus': '',
               'about': '',
-              'avatarLetter': fullName.isNotEmpty
-                  ? fullName[0].toUpperCase()
-                  : 'U',
+              'avatarLetter':
+                  fullName.isNotEmpty ? fullName[0].toUpperCase() : 'U',
               'photos': <String>[],
               'joinedGroups': <String>[],
               'coinBalance': 0,
@@ -218,10 +218,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
       await _refreshCoins();
       await _loadProfile();
+      if (!mounted) return;
+      setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Profile boosted and verified!')),
       );
     } catch (_) {
+      if (!mounted) return;
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Could not mark boost on server, but coins deducted locally.')),
@@ -336,6 +339,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final firstName = _profile!['fullName'].toString().split(' ')[0];
     final boostActive = _isBoostActive(_profile!);
     final isVerified = _profile!['isVerified'] == true;
+    final isAdmin = _profile!['isAdmin'] == true;
     
     return SingleChildScrollView(
       child: Column(
@@ -374,18 +378,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
-                if (isVerified || boostActive)
+                if (isAdmin || isVerified || boostActive)
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
                     child: Chip(
-                      avatar: const Icon(LucideIcons.checkCircle2, color: Colors.white, size: 16),
-                      backgroundColor: Colors.green,
+                      avatar: Icon(
+                        isAdmin ? LucideIcons.shieldCheck : LucideIcons.checkCircle2,
+                        color: Colors.white,
+                        size: 16,
+                      ),
+                      backgroundColor: isAdmin
+                          ? Colors.redAccent
+                          : Colors.green,
                       label: Text(
-                        boostActive && isVerified
-                            ? 'Verified & Boosted'
-                            : boostActive
-                                ? 'Boosted'
-                                : 'Verified',
+                        isAdmin
+                            ? 'Admin'
+                            : boostActive && isVerified
+                                ? 'Verified & Boosted'
+                                : boostActive
+                                    ? 'Boosted'
+                                    : 'Verified',
                         style: const TextStyle(color: Colors.white),
                       ),
                     ),
@@ -549,7 +561,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ),
                             ],
                           ),
-                          if ((_profile!['photos'] as List?)?.isNotEmpty ?? false) ...[  
+                          // Only show the grid if there are photos.
+                          if (_profile!['photos'] is List && (_profile!['photos'] as List).isNotEmpty) ...[
                             const SizedBox(height: 12),
                             GridView.builder(
                             shrinkWrap: true,
@@ -630,14 +643,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(height: 16),
                   TextButton(
                     onPressed: () {
+                      final navigator = Navigator.of(context);
+                      final messenger = ScaffoldMessenger.of(context);
                       showDialog(
                         context: context,
-                        builder: (context) => AlertDialog(
+                        builder: (dialogContext) => AlertDialog(
                           title: const Text('Delete Account'),
                           content: const Text('Are you sure? This action cannot be undone. All your data will be permanently deleted.'),
                           actions: [
                             TextButton(
-                              onPressed: () => Navigator.pop(context),
+                              onPressed: () => navigator.pop(),
                               child: const Text('Cancel'),
                             ),
                             TextButton(
@@ -654,17 +669,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       sessionId: 'current',
                                     );
                                     SessionStore.clear();
-                                    if (mounted) {
-                                      Navigator.pushReplacementNamed(context, '/login');
-                                    }
+                                    if (!mounted) return;
+                                    navigator.pushReplacementNamed('/login');
                                   }
                                 } catch (e) {
-                                  if (mounted) {
-                                    Navigator.pop(context);
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Failed to delete account')),
-                                    );
-                                  }
+                                  if (!mounted) return;
+                                  navigator.pop();
+                                  messenger.showSnackBar(
+                                    const SnackBar(content: Text('Failed to delete account')),
+                                  );
                                 }
                               },
                               child: const Text('Delete', style: TextStyle(color: Colors.red)),
