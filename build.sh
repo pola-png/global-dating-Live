@@ -10,6 +10,10 @@ export PATH="$PATH:$PWD/flutter/bin"
 flutter config --no-analytics
 flutter config --enable-web
 
-# Build web (skip doctor check)
+# Backup original pubspec and use web version
+cp pubspec.yaml pubspec_original.yaml
+cp pubspec_web.yaml pubspec.yaml
 flutter pub get
 flutter build web --release --web-renderer html
+# Restore original pubspec
+cp pubspec_original.yaml pubspec.yaml
