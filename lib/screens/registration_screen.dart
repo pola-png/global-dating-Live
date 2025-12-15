@@ -26,7 +26,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   
   String _selectedGender = 'Male';
   String _selectedCountry = 'United States';
-  String _countryCode = '+1';
+  // String _countryCode = '+1'; // Unused field
   String _selectedLookingFor = 'Long-term partner';
   String _selectedRelationshipStatus = 'Single';
   bool _acceptTerms = false;
@@ -62,7 +62,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       onSelect: (Country country) {
         setState(() {
           _selectedCountry = country.name;
-          _countryCode = '+${country.phoneCode}';
+          // _countryCode = '+${country.phoneCode}';
         });
       },
     );
@@ -175,7 +175,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.background,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
@@ -209,7 +209,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                         style: TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.onBackground,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                       const SizedBox(height: 8),
