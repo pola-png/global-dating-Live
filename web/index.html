@@ -5,6 +5,7 @@
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="Global Dating Chat - Connect with people worldwide">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Global Dating Chat">
@@ -13,8 +14,8 @@
   <title>Global Dating Chat</title>
   <link rel="manifest" href="manifest.json">
   <script>
-    var serviceWorkerVersion = null;
-    var scriptLoaded = false;
+    let serviceWorkerVersion = null;
+    let scriptLoaded = false;
     function loadMainDartJs() {
       if (scriptLoaded) {
         return;
@@ -27,7 +28,7 @@
     }
 
     if ('serviceWorker' in navigator) {
-      serviceWorkerVersion = '1';
+      serviceWorkerVersion = '2';
       navigator.serviceWorker.register('flutter_service_worker.js?v=' + serviceWorkerVersion);
     }
     window.addEventListener('load', function(ev) {
