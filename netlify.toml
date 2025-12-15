@@ -8,6 +8,16 @@
   APPWRITE_PROJECT_ID = "69384bc2002e7f635849"
 
 [[redirects]]
+  from = "/"
+  to = "/home.html"
+  status = 200
+
+[[redirects]]
+  from = "/app"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
   from = "/blog.html"
   to = "/blog.html"
   status = 200
