@@ -8,6 +8,51 @@
   APPWRITE_PROJECT_ID = "69384bc2002e7f635849"
 
 [[redirects]]
+  from = "/blog.html"
+  to = "/blog.html"
+  status = 200
+
+[[redirects]]
+  from = "/privacy-policy.html"
+  to = "/privacy-policy.html"
+  status = 200
+
+[[redirects]]
+  from = "/data-deletion.html"
+  to = "/data-deletion.html"
+  status = 200
+
+[[redirects]]
+  from = "/relationship-bio.html"
+  to = "/relationship-bio.html"
+  status = 200
+
+[[redirects]]
+  from = "/first-message-ideas.html"
+  to = "/first-message-ideas.html"
+  status = 200
+
+[[redirects]]
+  from = "/get-more-matches.html"
+  to = "/get-more-matches.html"
+  status = 200
+
+[[redirects]]
+  from = "/find-real-relationship.html"
+  to = "/find-real-relationship.html"
+  status = 200
+
+[[redirects]]
+  from = "/find-perfect-partner.html"
+  to = "/find-perfect-partner.html"
+  status = 200
+
+[[redirects]]
+  from = "/find-true-love.html"
+  to = "/find-true-love.html"
+  status = 200
+
+[[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
