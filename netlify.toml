@@ -7,6 +7,12 @@
   APPWRITE_ENDPOINT = "https://nyc.cloud.appwrite.io/v1"
   APPWRITE_PROJECT_ID = "69384bc2002e7f635849"
 
+[[headers]]
+  for = "/sitemap.xml"
+  [headers.values]
+    Content-Type = "application/xml; charset=utf-8"
+    Cache-Control = "public, max-age=3600"
+
 [[redirects]]
   from = "/"
   to = "/home.html"
