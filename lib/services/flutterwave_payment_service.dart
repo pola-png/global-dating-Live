@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -145,7 +146,7 @@ class FlutterwavePaymentService {
           'tx_ref': paymentId,
           'amount': price.toString(),
           'currency': FlutterwaveConfig.currency,
-          // Remove redirect_url for mobile apps - we'll handle completion via polling
+          'redirect_url': kIsWeb ? 'https://globaldatingchat.com/payment-success' : null,
           'customer': {
             'email': 'user@globaldatingchat.com',
             'name': 'User',
@@ -155,7 +156,6 @@ class FlutterwavePaymentService {
             'description': '$coins coins purchase',
             'logo': 'https://globaldatingchat.com/logo.png',
           },
-          // Add payment options for better mobile support
           'payment_options': 'card,mobilemoney,ussd',
         }),
       );
@@ -166,7 +166,10 @@ class FlutterwavePaymentService {
 
         if (paymentLink != null && context.mounted) {
           final uri = Uri.parse(paymentLink);
-          final launched = await launchUrl(uri, mode: LaunchMode.inAppWebView);
+          final launched = await launchUrl(
+            uri, 
+            mode: kIsWeb ? LaunchMode.platformDefault : LaunchMode.inAppWebView
+          );
 
           if (launched) {
             return await _waitForPaymentConfirmation(context, paymentId, coins);
@@ -215,7 +218,7 @@ class FlutterwavePaymentService {
           'tx_ref': paymentId,
           'amount': '50',
           'currency': FlutterwaveConfig.currency,
-          // No redirect_url for mobile apps
+          'redirect_url': kIsWeb ? 'https://globaldatingchat.com/payment-success' : null,
           'customer': {
             'email': 'user@globaldatingchat.com',
             'name': 'User',
@@ -225,7 +228,6 @@ class FlutterwavePaymentService {
             'description': 'Fast Matchmaking Service',
             'logo': 'https://globaldatingchat.com/logo.png',
           },
-          // Add payment options for better mobile support
           'payment_options': 'card,mobilemoney,ussd',
         }),
       );
@@ -236,7 +238,10 @@ class FlutterwavePaymentService {
 
         if (paymentLink != null && context.mounted) {
           final uri = Uri.parse(paymentLink);
-          final launched = await launchUrl(uri, mode: LaunchMode.inAppWebView);
+          final launched = await launchUrl(
+            uri, 
+            mode: kIsWeb ? LaunchMode.platformDefault : LaunchMode.inAppWebView
+          );
 
           if (launched) {
             return await _waitForPaymentConfirmation(context, paymentId, 0);
