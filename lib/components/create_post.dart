@@ -98,16 +98,15 @@ class _CreatePostState extends State<CreatePost> {
           'authorId': userId,
           'text': _textController.text.trim(),
           'backgroundColor': _selectedBgColor,
-          'textColor': _colorThemes[_selectedBgColor]!['text']
-              .toString(),
+          'textColor': _colorThemes[_selectedBgColor]!['text'].toString(),
           'isCentered': true,
           'createdAt': createdAt,
           'reactionsLike': 0,
           'reactionsHeart': 0,
           'reactionsLaugh': 0,
           'type': 'text_post',
-          'photoUrl': null,
-          'photoPath': null,
+          'photoUrl': '',
+          'photoPath': '',
         },
       );
 
