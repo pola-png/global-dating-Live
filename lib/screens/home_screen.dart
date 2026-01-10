@@ -149,8 +149,13 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
     ).then((res) {
       if (!mounted) return;
       final newPosts = res.documents.map((doc) => {...doc.data, 'id': doc.$id}).toList();
+      
+      // Remove duplicates before adding
+      final existingIds = _posts.map((p) => p['id']).toSet();
+      final uniqueNewPosts = newPosts.where((p) => !existingIds.contains(p['id'])).toList();
+      
       setState(() {
-        _posts.addAll(newPosts);
+        _posts.addAll(uniqueNewPosts);
       });
     });
   }
@@ -178,7 +183,11 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
 
   void _onPostCreated(Map<String, dynamic> newPost) {
     setState(() {
-      _posts.insert(0, newPost);
+      // Check if post already exists to prevent duplicates
+      final existingIndex = _posts.indexWhere((p) => p['id'] == newPost['id']);
+      if (existingIndex == -1) {
+        _posts.insert(0, newPost);
+      }
     });
   }
 
@@ -201,40 +210,9 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
   Widget build(BuildContext context) {
     super.build(context);
     final showLive = !kIsWeb;
-    if (!showLive) {
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Global Dating Chat'),
-          backgroundColor: Theme.of(context).primaryColor,
-          foregroundColor: Colors.white,
-          automaticallyImplyLeading: false,
-          actions: [
-            IconButton(
-              icon: const Icon(LucideIcons.badgeDollarSign, color: Colors.green),
-              tooltip: 'Coins',
-              onPressed: () => Navigator.pushNamed(context, '/coins'),
-            ),
-            IconButton(
-              icon: const Icon(LucideIcons.edit),
-              onPressed: _showPostIcon
-                  ? _showCreatePostDialog
-                  : () {
-                      _scrollController.animateTo(
-                        0,
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeOut,
-                      );
-                    },
-            ),
-          ],
-        ),
-        bottomNavigationBar: _buildBottomNav(),
-        body: _isLoading ? _wrapResponsive(_buildLoadingState()) : _buildFeed(),
-      );
-    }
-
+    
     return DefaultTabController(
-      length: 2,
+      length: showLive ? 2 : 1,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Global Dating Chat'),
@@ -260,7 +238,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                     },
             ),
           ],
-          bottom: const TabBar(
+          bottom: showLive ? const TabBar(
             labelColor: Colors.white,
             unselectedLabelColor: Colors.white70,
             indicatorColor: Colors.white,
@@ -268,15 +246,17 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
               Tab(text: 'Feed', icon: Icon(LucideIcons.list)),
               Tab(text: 'Live', icon: Icon(LucideIcons.radio)),
             ],
-          ),
+          ) : null,
         ),
         bottomNavigationBar: _buildBottomNav(),
-        body: const TabBarView(
-          children: [
-            _FeedTabWrapper(),
-            LiveStreamTab(),
-          ],
-        ),
+        body: showLive 
+            ? const TabBarView(
+                children: [
+                  _FeedTabWrapper(),
+                  LiveStreamTab(),
+                ],
+              )
+            : (_isLoading ? _wrapResponsive(_buildLoadingState()) : _buildFeed()),
       ),
     );
   }

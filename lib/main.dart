@@ -40,13 +40,27 @@ void main() async {
   }
   
   try {
-    await Firebase.initializeApp();
+    if (kIsWeb) {
+      await Firebase.initializeApp(
+        options: const FirebaseOptions(
+          apiKey: "AIzaSyDGqL7rZxJ5Zx5Zx5Zx5Zx5Zx5Zx5Zx5Z",
+          authDomain: "globaldatingchat.firebaseapp.com",
+          projectId: "globaldatingchat",
+          storageBucket: "globaldatingchat.appspot.com",
+          messagingSenderId: "123456789",
+          appId: "1:123456789:web:abcdef123456789",
+        ),
+      );
+    } else {
+      await Firebase.initializeApp();
+    }
     if (!kIsWeb) {
       await AdMobService.initialize();
     }
     AnalyticsService.instance; // Initialize analytics
   } catch (e) {
     debugPrint('Firebase initialization error: $e');
+    // Continue without Firebase on web if it fails
   }
 
   final prefs = await SharedPreferences.getInstance();
