@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 
 import 'services/appwrite_service.dart';
 import 'services/push_registration_service.dart';
@@ -34,22 +35,39 @@ final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  if (!kIsWeb) {
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  }
   
-  await Firebase.initializeApp();
-  await AdMobService.initialize();
-  AnalyticsService.instance; // Initialize analytics
+  try {
+    await Firebase.initializeApp();
+    if (!kIsWeb) {
+      await AdMobService.initialize();
+    }
+    AnalyticsService.instance; // Initialize analytics
+  } catch (e) {
+    debugPrint('Firebase initialization error: $e');
+  }
 
   final prefs = await SharedPreferences.getInstance();
   final bool isOfAge = prefs.getBool('is_of_age') ?? false;
 
   // Check for existing session
-  await SessionStore.refresh();
-  final hasSession = SessionStore.userId != null;
+  bool hasSession = false;
+  try {
+    await SessionStore.refresh();
+    hasSession = SessionStore.userId != null;
+  } catch (e) {
+    debugPrint('Session check error: $e');
+    hasSession = false;
+  }
 
   runApp(MainApp(isOfAge: isOfAge, hasSession: hasSession));
-  _startRealtimeNotifications();
-  _initializePushNotifications();
+  
+  if (!kIsWeb) {
+    _startRealtimeNotifications();
+    _initializePushNotifications();
+  }
 }
 
 class MainApp extends StatelessWidget {
@@ -136,7 +154,10 @@ class MainApp extends StatelessWidget {
             builder: (context) => ProfileScreen(userId: userId),
           );
         }
-        return null;
+        // Fallback for unknown routes
+        return MaterialPageRoute(
+          builder: (context) => !isOfAge ? const AgeGateScreen() : (hasSession ? const HomeScreen() : const LoginScreen()),
+        );
       },
     );
   }
