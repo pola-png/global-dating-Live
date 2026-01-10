@@ -358,24 +358,27 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                     sliver: SliverList(
                       delegate: SliverChildBuilderDelegate(
                         (context, index) {
-                          final postIndex = index ~/ 2;
-                          final isAd = index.isOdd;
-                          
-                          if (isAd && !kIsWeb) {
-                            final adIndex = index ~/ 2;
-                            if (adIndex % 3 == 1) {
-                              return _buildBannerAd(adIndex);
-                            } else if (adIndex % 3 == 2) {
-                              return _buildNativeAd(adIndex);
-                            }
-                            return const SizedBox.shrink();
+                          if (kIsWeb) {
+                            // Web: Show only posts, no ads
+                            if (index >= _posts.length) return null;
+                            return PostCard(post: _posts[index]);
                           }
                           
-                          if (postIndex >= _posts.length) return null;
-                          final post = _posts[postIndex];
-                          return PostCard(post: post);
+                          // Mobile: Show posts with ads every 2 posts
+                          final postIndex = index ~/ 3; // Every 3rd item could be an ad
+                          final isAd = index % 3 == 2; // Every 3rd position is an ad
+                          
+                          if (isAd) {
+                            final adIndex = postIndex;
+                            return _buildBannerAd(adIndex);
+                          }
+                          
+                          // Calculate actual post index (skip ad positions)
+                          final actualPostIndex = index - (index ~/ 3);
+                          if (actualPostIndex >= _posts.length) return null;
+                          return PostCard(post: _posts[actualPostIndex]);
                         },
-                        childCount: _posts.length * 2,
+                        childCount: kIsWeb ? _posts.length : _posts.length + (_posts.length ~/ 2),
                       ),
                     ),
                   ),
