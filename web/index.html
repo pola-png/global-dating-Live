@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <base href="/">
+  <base href="$FLUTTER_BASE_HREF">
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="Global Dating Chat - Connect with people worldwide">
@@ -13,39 +13,37 @@
   <link rel="icon" type="image/png" href="favicon.png"/>
   <title>Global Dating Chat</title>
   <link rel="manifest" href="manifest.json">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #ffffff;
+    }
+    .loading {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      font-family: Arial, sans-serif;
+    }
+  </style>
+</head>
+<body>
+  <div id="loading" class="loading">
+    <div>Loading...</div>
+  </div>
   <script>
-    let serviceWorkerVersion = null;
-    let scriptLoaded = false;
-    function loadMainDartJs() {
-      if (scriptLoaded) {
-        return;
-      }
-      scriptLoaded = true;
-      var scriptTag = document.createElement('script');
-      scriptTag.src = 'main.dart.js';
-      scriptTag.type = 'application/javascript';
-      document.body.append(scriptTag);
-    }
-
-    if ('serviceWorker' in navigator) {
-      serviceWorkerVersion = '2';
-      navigator.serviceWorker.register('flutter_service_worker.js?v=' + serviceWorkerVersion);
-    }
     window.addEventListener('load', function(ev) {
       _flutter.loader.loadEntrypoint({
-        serviceWorker: {
-          serviceWorkerVersion: serviceWorkerVersion,
-        },
         onEntrypointLoaded: function(engineInitializer) {
           engineInitializer.initializeEngine().then(function(appRunner) {
+            document.getElementById('loading').style.display = 'none';
             appRunner.runApp();
           });
         }
       });
     });
   </script>
-</head>
-<body>
   <script src="flutter.js" defer></script>
 </body>
 </html>
