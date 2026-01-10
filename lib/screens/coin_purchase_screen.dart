@@ -158,10 +158,7 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
                   ),
                 ),
               ),
-              title: const Text(
-                'Buy Coins',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
+              title: null,
             ),
           ),
           // Content
