@@ -86,7 +86,7 @@ build/
 *.jks
 _redirects
 first
-vercel.json
+
 package.json
 netlify.toml
 appwrite-function-livekit-token.js
