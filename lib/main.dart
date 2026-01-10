@@ -66,7 +66,7 @@ class MainApp extends StatelessWidget {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.system,
-      initialRoute: !isOfAge ? '/age-gate' : '/home',
+      initialRoute: !isOfAge ? '/age-gate' : (hasSession ? '/home' : '/login'),
       builder: (context, child) {
         final brightness = Theme.of(context).brightness;
         final overlay = brightness == Brightness.dark
