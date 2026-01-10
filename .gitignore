@@ -1,0 +1,116 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.buildlog/
+.history
+.svn/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/flutter_export_environment.sh
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+/build/
+pubspec_original.yaml
+.metadata
+.flutterignore
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# Android build files
+/android/.gradle/
+/android/.kotlin/
+/android/local.properties
+/android/key.properties
+/android/upload-keystore.jks
+/android/global_dating_chat_android.iml
+
+# iOS build files
+/ios/Flutter/ephemeral/
+/ios/Runner.xcworkspace/xcshareddata/
+/ios/Runner.xcodeproj/project.xcworkspace/xcshareddata/
+
+# macOS build files
+/macos/Flutter/ephemeral/
+/macos/Runner.xcworkspace/xcshareddata/
+/macos/Runner.xcodeproj/project.xcworkspace/xcshareddata/
+
+# Linux build files
+/linux/flutter/ephemeral/
+
+# Windows build files
+/windows/flutter/ephemeral/
+
+# Build directory
+build/
+
+# Documentation and config files
+*.md
+*.sql
+*.toml
+*.sh
+*.bat
+*.js
+*.json
+*.html
+*.txt
+*.jks
+_redirects
+first
+vercel.json
+package.json
+netlify.toml
+appwrite-function-livekit-token.js
+livekit-token-main.js
+livekit-token-package.json
+package-livekit-function.json
+migrate_appwrite.bat
+cleanup.bat
+build_apk.bat
+build.sh
+supabase_*.sql
+upload-keystore.jks
+
+# Keep essential files
+!pubspec.yaml
+!pubspec.lock
+!analysis_options.yaml
+!flutter_launcher_icons.yaml
+!web/*.html
+!web/manifest.json
+!web/robots.txt
+!web/sitemap.xml
+!android/app/build.gradle.kts
+!android/build.gradle.kts
+!android/settings.gradle.kts
+!android/app/google-services.json
+!README.md

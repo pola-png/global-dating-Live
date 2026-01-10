@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "529701621502",
+    "project_id": "global-dating-chat-c199e",
+    "storage_bucket": "global-dating-chat-c199e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:529701621502:android:6c5a9ec9061c05123a5faf",
+        "android_client_info": {
+          "package_name": "com.xapzap.global_dating_chat"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB1M6mWAXt8ifcO9hEoTdivikc3Im71SEE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
