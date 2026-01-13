@@ -112,9 +112,7 @@ class _ManagePhotosScreenState extends State<ManagePhotosScreen> {
         documentId: ID.unique(),
         data: {
           'authorId': userId,
-          'text': '',
-          'backgroundColor': 'white',
-          'textColor': '#000000',
+          'text': null,
           'isCentered': false,
           'createdAt': DateTime.now().toIso8601String(),
           'reactionsLike': 0,

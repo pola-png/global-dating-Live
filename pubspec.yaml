@@ -1,7 +1,7 @@
 name: globaldatingchat
 description: "Global Dating Chat - Connect with people worldwide"
 publish_to: 'none'
-version: 1.0.9+10
+version: 1.0.11+12
 
 environment:
   sdk: '>=3.5.0 <4.0.0'
@@ -25,6 +25,22 @@ dependencies:
   permission_handler: ^11.0.1
   google_mobile_ads: ^5.2.0
   firebase_analytics: ^12.0.4
+  
+  # Modern UI/UX enhancements
+  flutter_animate: ^4.5.0
+  shimmer: ^3.0.0
+  lottie: ^3.1.2
+  flutter_staggered_animations: ^1.1.1
+  
+  # State management and architecture
+  provider: ^6.1.2
+  get_it: ^8.0.2
+  
+  # Performance and utilities
+  package_info_plus: ^8.0.2
+  device_info_plus: ^11.1.0
+  connectivity_plus: ^6.1.0
+  wakelock_plus: ^1.2.8
 
 dev_dependencies:
   flutter_test:

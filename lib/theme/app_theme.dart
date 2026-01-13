@@ -47,22 +47,119 @@ class AppTheme {
       error: error,
     ),
     
-    // Card Theme
+    // Enhanced Typography
+    textTheme: const TextTheme(
+      displayLarge: TextStyle(fontSize: 57, fontWeight: FontWeight.w400, letterSpacing: -0.25),
+      displayMedium: TextStyle(fontSize: 45, fontWeight: FontWeight.w400),
+      displaySmall: TextStyle(fontSize: 36, fontWeight: FontWeight.w400),
+      headlineLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.w600),
+      headlineMedium: TextStyle(fontSize: 28, fontWeight: FontWeight.w600),
+      headlineSmall: TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
+      titleLarge: TextStyle(fontSize: 22, fontWeight: FontWeight.w500),
+      titleMedium: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, letterSpacing: 0.15),
+      titleSmall: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, letterSpacing: 0.1),
+      bodyLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w400, letterSpacing: 0.5),
+      bodyMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.w400, letterSpacing: 0.25),
+      bodySmall: TextStyle(fontSize: 12, fontWeight: FontWeight.w400, letterSpacing: 0.4),
+      labelLarge: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, letterSpacing: 0.1),
+      labelMedium: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, letterSpacing: 0.5),
+      labelSmall: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, letterSpacing: 0.5),
+    ),
+    
+    // Enhanced Card Theme
     cardTheme: const CardThemeData(
       elevation: 1,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.all(Radius.circular(12)),
+        borderRadius: BorderRadius.all(Radius.circular(16)),
       ),
       clipBehavior: Clip.antiAlias,
+      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
     ),
 
-    // Dialog Theme
+    // Enhanced Dialog Theme
     dialogTheme: const DialogThemeData(
       backgroundColor: lightSurface,
       elevation: 6,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.all(Radius.circular(16)),
+        borderRadius: BorderRadius.all(Radius.circular(24)),
       ),
+      titleTextStyle: TextStyle(
+        fontSize: 24,
+        fontWeight: FontWeight.w600,
+        color: lightOnSurface,
+      ),
+    ),
+    
+    // Enhanced Button Themes
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(12)),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      ),
+    ),
+    
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(12)),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      ),
+    ),
+    
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(12)),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      ),
+    ),
+    
+    // Enhanced Input Decoration
+    inputDecorationTheme: const InputDecorationTheme(
+      filled: true,
+      fillColor: lightSurfaceVariant,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.all(Radius.circular(12)),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.all(Radius.circular(12)),
+        borderSide: BorderSide(color: primary, width: 2),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.all(Radius.circular(12)),
+        borderSide: BorderSide(color: error, width: 1),
+      ),
+      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+    ),
+    
+    // Enhanced App Bar Theme
+    appBarTheme: const AppBarTheme(
+      elevation: 0,
+      scrolledUnderElevation: 1,
+      backgroundColor: lightSurface,
+      foregroundColor: lightOnSurface,
+      titleTextStyle: TextStyle(
+        fontSize: 22,
+        fontWeight: FontWeight.w600,
+        color: lightOnSurface,
+      ),
+      systemOverlayStyle: SystemUiOverlayStyle.dark,
+    ),
+    
+    // Enhanced Bottom Navigation
+    bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+      elevation: 3,
+      backgroundColor: lightSurface,
+      selectedItemColor: primary,
+      unselectedItemColor: lightOnSurfaceVariant,
+      type: BottomNavigationBarType.fixed,
+      selectedLabelStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+      unselectedLabelStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w400),
     ),
   );
 
@@ -84,22 +181,119 @@ class AppTheme {
       error: error,
     ),
     
-    // Card Theme
+    // Enhanced Typography
+    textTheme: const TextTheme(
+      displayLarge: TextStyle(fontSize: 57, fontWeight: FontWeight.w400, letterSpacing: -0.25),
+      displayMedium: TextStyle(fontSize: 45, fontWeight: FontWeight.w400),
+      displaySmall: TextStyle(fontSize: 36, fontWeight: FontWeight.w400),
+      headlineLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.w600),
+      headlineMedium: TextStyle(fontSize: 28, fontWeight: FontWeight.w600),
+      headlineSmall: TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
+      titleLarge: TextStyle(fontSize: 22, fontWeight: FontWeight.w500),
+      titleMedium: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, letterSpacing: 0.15),
+      titleSmall: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, letterSpacing: 0.1),
+      bodyLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w400, letterSpacing: 0.5),
+      bodyMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.w400, letterSpacing: 0.25),
+      bodySmall: TextStyle(fontSize: 12, fontWeight: FontWeight.w400, letterSpacing: 0.4),
+      labelLarge: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, letterSpacing: 0.1),
+      labelMedium: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, letterSpacing: 0.5),
+      labelSmall: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, letterSpacing: 0.5),
+    ),
+    
+    // Enhanced Card Theme
     cardTheme: const CardThemeData(
       elevation: 1,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.all(Radius.circular(12)),
+        borderRadius: BorderRadius.all(Radius.circular(16)),
       ),
       clipBehavior: Clip.antiAlias,
+      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
     ),
 
-    // Dialog Theme
+    // Enhanced Dialog Theme
     dialogTheme: const DialogThemeData(
       backgroundColor: darkSurface,
       elevation: 6,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.all(Radius.circular(16)),
+        borderRadius: BorderRadius.all(Radius.circular(24)),
       ),
+      titleTextStyle: TextStyle(
+        fontSize: 24,
+        fontWeight: FontWeight.w600,
+        color: darkOnSurface,
+      ),
+    ),
+    
+    // Enhanced Button Themes
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(12)),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      ),
+    ),
+    
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(12)),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      ),
+    ),
+    
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(12)),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      ),
+    ),
+    
+    // Enhanced Input Decoration
+    inputDecorationTheme: const InputDecorationTheme(
+      filled: true,
+      fillColor: darkSurfaceVariant,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.all(Radius.circular(12)),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.all(Radius.circular(12)),
+        borderSide: BorderSide(color: primary, width: 2),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.all(Radius.circular(12)),
+        borderSide: BorderSide(color: error, width: 1),
+      ),
+      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+    ),
+    
+    // Enhanced App Bar Theme
+    appBarTheme: const AppBarTheme(
+      elevation: 0,
+      scrolledUnderElevation: 1,
+      backgroundColor: darkSurface,
+      foregroundColor: darkOnSurface,
+      titleTextStyle: TextStyle(
+        fontSize: 22,
+        fontWeight: FontWeight.w600,
+        color: darkOnSurface,
+      ),
+      systemOverlayStyle: SystemUiOverlayStyle.light,
+    ),
+    
+    // Enhanced Bottom Navigation
+    bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+      elevation: 3,
+      backgroundColor: darkSurface,
+      selectedItemColor: primary,
+      unselectedItemColor: darkOnSurfaceVariant,
+      type: BottomNavigationBarType.fixed,
+      selectedLabelStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+      unselectedLabelStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w400),
     ),
   );
 }

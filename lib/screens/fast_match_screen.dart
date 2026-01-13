@@ -1,14 +1,11 @@
-import 'package:appwrite/appwrite.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../components/responsive_page.dart';
-import '../config/appwrite_config.dart';
-import '../config/admin_config.dart';
-import '../services/appwrite_service.dart';
-import '../services/flutterwave_payment_service.dart';
 import '../services/admin_support_service.dart';
+import '../services/appwrite_service.dart';
 
 class FastMatchScreen extends StatefulWidget {
   const FastMatchScreen({super.key});
@@ -37,54 +34,42 @@ class _FastMatchScreenState extends State<FastMatchScreen> with AutomaticKeepAli
   }
 
   Future<void> _startFastMatch() async {
+    // Check if user is authenticated
+    final userId = await SessionStore.ensureUserId();
+    if (userId == null) {
+      if (mounted) {
+        Navigator.pushNamed(context, '/login');
+      }
+      return;
+    }
+    
     setState(() => _processing = true);
     try {
-      final ctx = context;
-      final paid = await FlutterwavePaymentService.payForFastMatch(
-        context: ctx,
-      );
-      if (!mounted) return;
-      if (paid) {
-        final userId = await SessionStore.ensureUserId();
-        if (userId == null) {
-          if (mounted) {
-            Navigator.pushReplacementNamed(context, '/login');
-          }
-          return;
-        }
-
-        final adminId = AdminConfig.adminUserId;
-        if (!mounted) return;
-        final chatRoomId = await AdminSupportService.openAdminChat(context) ?? '';
-
-        // Track payment success
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setBool('fast_match_paid', true);
-        await prefs.setString('fast_match_chat_room', chatRoomId);
-
-        try {
-          final db = AppwriteService.databases;
-          await db.createDocument(
-            databaseId: AppwriteConfig.databaseId,
-            collectionId: AppwriteConfig.supportSessionsCollectionId,
-            documentId: ID.unique(),
-            data: {
-              'sessionId': 'fastmatch-${DateTime.now().millisecondsSinceEpoch}',
-              'userId': userId,
-              'adminId': adminId,
-              'chatRoomId': chatRoomId,
-              'type': 'fast_match',
-              'status': 'open',
-              'createdAt': DateTime.now().toIso8601String(),
-            },
-          );
-        } catch (_) {}
-
+      // Open Flutterwave payment link
+      final uri = Uri.parse('https://flutterwave.com/pay/sadj3pd9qk1c');
+      final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      
+      if (launched) {
+        // Send message to admin support for approval
+        await AdminSupportService.sendMessage(
+          'Fast Match Payment Approval Required - User has initiated Fast Match payment. Please verify payment and approve the service.',
+        );
+        
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Payment successful! Opening admin support chat...'),
-              backgroundColor: Colors.green,
+              content: Text('Payment link opened! After payment, admin will verify and approve your Fast Match service within 24 hours.'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 5),
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not open payment link'),
+              backgroundColor: Colors.red,
             ),
           );
         }
@@ -93,7 +78,7 @@ class _FastMatchScreenState extends State<FastMatchScreen> with AutomaticKeepAli
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Fast match payment error: $e'),
+          content: Text('Error opening payment: $e'),
           backgroundColor: Colors.red,
         ),
       );

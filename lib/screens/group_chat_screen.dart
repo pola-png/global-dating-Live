@@ -2,10 +2,12 @@ import 'package:appwrite/appwrite.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:country_picker/country_picker.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../components/report_dialog.dart';
 import '../components/responsive_page.dart';
 import '../config/appwrite_config.dart';
 import '../services/appwrite_service.dart';
+import '../services/storage_service.dart';
 
 class GroupChatScreen extends StatefulWidget {
   final String countrySlug;
@@ -63,9 +65,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
       final messagesRes = await db.listDocuments(
         databaseId: AppwriteConfig.databaseId,
-        collectionId: 'groupmessages',
+        collectionId: AppwriteConfig.messagesCollectionId,
         queries: [
-          Query.equal('countrySlug', widget.countrySlug),
+          Query.equal('chatRoomId', widget.countrySlug),
           Query.orderAsc('createdAt'),
           Query.limit(50),
         ],
@@ -101,14 +103,14 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   void _subscribeToMessages() {
     final sub = AppwriteService.realtime.subscribe([
-      'databases.${AppwriteConfig.databaseId}.collections.groupmessages.documents',
+      'databases.${AppwriteConfig.databaseId}.collections.${AppwriteConfig.messagesCollectionId}.documents',
     ]);
 
     sub.stream.listen((event) {
       if (!event.events.any((e) => e.endsWith('.create'))) return;
       final data = event.payload['data'] as Map<String, dynamic>?;
       if (data == null) return;
-      if (data['countrySlug'] != widget.countrySlug) return;
+      if (data['chatRoomId'] != widget.countrySlug) return;
 
       final newMessage = {
         ...data,
@@ -152,8 +154,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     final tempMessage = {
       'id': 'sending...',
       'text': text,
-      'authorId': currentUserId,
-      'countrySlug': widget.countrySlug,
+      'senderId': currentUserId,
+      'chatRoomId': widget.countrySlug,
       'createdAt': DateTime.now().toIso8601String(),
       'status': 'sending',
     };
@@ -168,13 +170,15 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     try {
       await AppwriteService.databases.createDocument(
         databaseId: AppwriteConfig.databaseId,
-        collectionId: 'groupmessages',
+        collectionId: AppwriteConfig.messagesCollectionId,
         documentId: ID.unique(),
         data: {
           'text': text,
-          'authorId': currentUserId,
-          'countrySlug': widget.countrySlug,
+          'senderId': currentUserId,
+          'chatRoomId': widget.countrySlug,
           'createdAt': tempMessage['createdAt'],
+          'isRead': false,
+          'status': 'sent',
         },
       );
     } catch (e) {
@@ -324,107 +328,143 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   Widget _buildMessageBubble(Map<String, dynamic> message) {
     final theme = Theme.of(context);
     final currentUserId = SessionStore.userId;
-    final isCurrentUser = message['authorId'] == currentUserId;
-    final author = message['author'] as Map<String, dynamic>? ?? {};
+    final isCurrentUser = message['senderId'] == currentUserId;
+    final senderId = message['senderId'] ?? '';
 
-    return GestureDetector(
-      onLongPress: !isCurrentUser ? () => _showReportDialog(message) : null,
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: 16),
-        child: Row(
-          mainAxisAlignment: isCurrentUser 
-              ? MainAxisAlignment.end 
-              : MainAxisAlignment.start,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (!isCurrentUser) ...[
-              GestureDetector(
-                onTap: () => Navigator.pushNamed(
-                  context,
-                  '/profile/${message['authorId']}',
-                ),
-                child: CircleAvatar(
-                  radius: 16,
-                  backgroundColor: theme.colorScheme.primary,
-                  child: Text(
-                    author['avatarLetter'] ?? 'U',
-                    style: TextStyle(
-                      color: theme.colorScheme.onPrimary,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
+    return FutureBuilder<Map<String, dynamic>?>(
+      future: _getAuthorProfile(senderId),
+      builder: (context, snapshot) {
+        final author = snapshot.data ?? {};
+        final authorName = author['fullName'] ?? 'Unknown User';
+        final avatarPath = author['avatarPath'] as String?;
+        final photos = author['photos'] as List?;
+        String? avatarUrl;
+        
+        if (photos != null && photos.isNotEmpty) {
+          avatarUrl = StorageService.buildFileUrl(photos.first);
+        } else if (avatarPath != null && avatarPath.isNotEmpty) {
+          avatarUrl = StorageService.buildFileUrl(avatarPath);
+        }
+
+        return GestureDetector(
+          onLongPress: !isCurrentUser ? () => _showReportDialog(message) : null,
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: Row(
+              mainAxisAlignment: isCurrentUser 
+                  ? MainAxisAlignment.end 
+                  : MainAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (!isCurrentUser) ...[
+                  GestureDetector(
+                    onTap: () => Navigator.pushNamed(
+                      context,
+                      '/profile/$senderId',
+                    ),
+                    child: CircleAvatar(
+                      radius: 16,
+                      backgroundColor: theme.colorScheme.primary,
+                      backgroundImage: avatarUrl != null
+                          ? CachedNetworkImageProvider(avatarUrl)
+                          : null,
+                      child: avatarUrl == null
+                          ? Text(
+                              authorName.isNotEmpty ? authorName[0].toUpperCase() : 'U',
+                              style: TextStyle(
+                                color: theme.colorScheme.onPrimary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            )
+                          : null,
                     ),
                   ),
-                ),
-              ),
-              const SizedBox(width: 8),
-            ],
-            Flexible(
-              child: Column(
-                crossAxisAlignment: isCurrentUser 
-                    ? CrossAxisAlignment.end 
-                    : CrossAxisAlignment.start,
-                children: [
-                  if (!isCurrentUser)
-                    GestureDetector(
-                      onTap: () => Navigator.pushNamed(
-                        context,
-                        '/profile/${message['authorId']}',
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.only(bottom: 4),
+                  const SizedBox(width: 8),
+                ],
+                Flexible(
+                  child: Column(
+                    crossAxisAlignment: isCurrentUser 
+                        ? CrossAxisAlignment.end 
+                        : CrossAxisAlignment.start,
+                    children: [
+                      if (!isCurrentUser)
+                        GestureDetector(
+                          onTap: () => Navigator.pushNamed(
+                            context,
+                            '/profile/$senderId',
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Text(
+                              authorName,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: theme.textTheme.bodySmall?.color,
+                              ),
+                            ),
+                          ),
+                        ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isCurrentUser 
+                              ? theme.colorScheme.primary
+                              : theme.colorScheme.surface,
+                          borderRadius: BorderRadius.circular(18),
+                        ),
                         child: Text(
-                          author['fullName'] ?? 'Unknown User',
+                          message['text'] ?? '',
                           style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
+                            color: isCurrentUser ? theme.colorScheme.onPrimary : theme.colorScheme.onSurface,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          _formatTime(message['createdAt'] as String),
+                          style: TextStyle(
+                            fontSize: 10,
                             color: theme.textTheme.bodySmall?.color,
                           ),
                         ),
                       ),
-                    ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isCurrentUser 
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.surface,
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    child: Text(
-                      message['text'] ?? '',
-                      style: TextStyle(
-                        color: isCurrentUser ? theme.colorScheme.onPrimary : theme.colorScheme.onSurface,
-                        fontSize: 16,
-                      ),
-                    ),
+                    ],
                   ),
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(
-                      _formatTime(message['createdAt'] as String),
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: theme.textTheme.bodySmall?.color,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
+  }
+
+  Future<Map<String, dynamic>?> _getAuthorProfile(String userId) async {
+    if (userId.isEmpty) return null;
+    try {
+      final doc = await AppwriteService.databases.getDocument(
+        databaseId: AppwriteConfig.databaseId,
+        collectionId: AppwriteConfig.profilesCollectionId,
+        documentId: userId,
+      );
+      return {...doc.data, 'id': doc.$id};
+    } catch (_) {
+      return null;
+    }
   }
 
   void _showReportDialog(Map<String, dynamic> message) {
     showDialog(
       context: context,
       builder: (context) => ReportDialog(
-        reportedUserId: message['authorId'],
+        reportedUserId: message['senderId'],
         context: 'group_chat',
         contextId: widget.countrySlug,
       ),

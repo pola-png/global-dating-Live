@@ -1,9 +1,11 @@
 import 'package:appwrite/appwrite.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import '../components/avatar_widget.dart';
 import '../components/responsive_page.dart';
 import '../config/appwrite_config.dart';
 import '../services/appwrite_service.dart';
+import '../services/timezone_service.dart';
 
 class ChatListScreen extends StatefulWidget {
   const ChatListScreen({super.key});
@@ -64,11 +66,11 @@ class _ChatListScreenState extends State<ChatListScreen> with AutomaticKeepAlive
             ? data['user2Id'] as String
             : data['user1Id'] as String;
 
-      final profileRes = await db.getDocument(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.profilesCollectionId,
-        documentId: otherUserId,
-      );
+        final profileRes = await db.getDocument(
+          databaseId: AppwriteConfig.databaseId,
+          collectionId: AppwriteConfig.profilesCollectionId,
+          documentId: otherUserId,
+        );
 
         final unreadRes = await db.listDocuments(
           databaseId: AppwriteConfig.databaseId,
@@ -80,12 +82,35 @@ class _ChatListScreenState extends State<ChatListScreen> with AutomaticKeepAlive
           ],
         );
 
+        // Fetch the last message for this chat room
+        Map<String, dynamic>? lastMessage;
+        try {
+          final lastMsgRes = await db.listDocuments(
+            databaseId: AppwriteConfig.databaseId,
+            collectionId: AppwriteConfig.messagesCollectionId,
+            queries: [
+              Query.equal('chatRoomId', room.$id),
+              Query.orderDesc('createdAt'),
+              Query.limit(1),
+            ],
+          );
+          if (lastMsgRes.documents.isNotEmpty) {
+            lastMessage = {
+              ...lastMsgRes.documents.first.data,
+              'id': lastMsgRes.documents.first.$id,
+            };
+          }
+        } catch (_) {
+          // Ignore errors fetching last message
+        }
+
         chatsWithUsers.add({
           'id': room.$id,
           ...data,
           'other_user': profileRes.data,
           'other_user_id': otherUserId,
           'unread_count': unreadRes.total,
+          'last_message': lastMessage,
         });
       }
 
@@ -126,23 +151,38 @@ class _ChatListScreenState extends State<ChatListScreen> with AutomaticKeepAlive
     });
   }
 
-  String _formatTimestamp(String? timestamp) {
-    if (timestamp == null) return '';
+  Widget _buildTimestamp(String? timestamp) {
+    if (timestamp == null) return const Text('');
     
-    final messageTime = DateTime.parse(timestamp);
-    final now = DateTime.now();
-    final difference = now.difference(messageTime);
+    return StreamBuilder<int>(
+      stream: Stream.periodic(const Duration(seconds: 30), (i) => i),
+      builder: (context, snapshot) {
+        try {
+          final now = DateTime.now();
+          final messageTime = DateTime.parse(timestamp).toLocal();
+          final difference = now.difference(messageTime);
 
-    if (difference.inMinutes < 60) {
-      return '${difference.inMinutes}m ago';
-    } else if (difference.inHours < 24) {
-      return '${difference.inHours}h ago';
-    } else if (difference.inDays < 7) {
-      final weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-      return weekdays[messageTime.weekday - 1];
-    } else {
-      return '${messageTime.day}/${messageTime.month}/${messageTime.year.toString().substring(2)}';
-    }
+          String timeText;
+          
+          if (difference.isNegative || difference.inMinutes < 1) {
+            timeText = 'Just now';
+          } else if (difference.inMinutes < 60) {
+            timeText = '${difference.inMinutes}m ago';
+          } else if (difference.inHours < 24) {
+            timeText = '${difference.inHours}h ago';
+          } else if (difference.inDays < 7) {
+            final weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+            timeText = weekdays[messageTime.weekday - 1];
+          } else {
+            timeText = '${messageTime.day}/${messageTime.month}/${messageTime.year.toString().substring(2)}';
+          }
+          
+          return Text(timeText, style: TextStyle(color: Colors.grey[500], fontSize: 12));
+        } catch (e) {
+          return Text('Just now', style: TextStyle(color: Colors.grey[500], fontSize: 12));
+        }
+      },
+    );
   }
 
   @override
@@ -365,17 +405,13 @@ class _ChatListScreenState extends State<ChatListScreen> with AutomaticKeepAlive
         final unreadCount = chat['unread_count'] as int;
 
         return ListTile(
-          leading: CircleAvatar(
+          leading: AvatarWidget(
+            avatarUrl: otherUser['avatarPath'] as String?,
+            photos: otherUser['photos'] != null ? List<String>.from(otherUser['photos']) : null,
+            avatarLetter: (otherUser['fullName'] ?? otherUser['name'] ?? 'U').toString().isNotEmpty 
+                ? (otherUser['fullName'] ?? otherUser['name'] ?? 'U').toString()[0].toUpperCase() 
+                : 'U',
             radius: 25,
-            backgroundColor: Theme.of(context).primaryColor,
-            child: Text(
-            otherUser['avatarLetter'] ?? 'U',
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-              ),
-            ),
           ),
           title: Text(
             otherUser['fullName'] ?? 'Unknown User',
@@ -397,13 +433,7 @@ class _ChatListScreenState extends State<ChatListScreen> with AutomaticKeepAlive
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(
-                _formatTimestamp(lastMessage?['createdAt'] as String?),
-                style: TextStyle(
-                  color: Colors.grey[500],
-                  fontSize: 12,
-                ),
-              ),
+              _buildTimestamp(lastMessage?['createdAt'] as String?),
               if (unreadCount > 0) ...[
                 const SizedBox(height: 4),
                 Container(

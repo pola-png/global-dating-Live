@@ -1,6 +1,4 @@
-<!DOCTYPE html>
-<html>
-<head>
+<!DOCTYPE html><html><head>
   <base href="$FLUTTER_BASE_HREF">
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
@@ -10,40 +8,31 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Global Dating Chat">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
-  <link rel="icon" type="image/png" href="favicon.png"/>
+  <link rel="icon" type="image/png" href="favicon.png">
   <title>Global Dating Chat</title>
   <link rel="manifest" href="manifest.json">
   <style>
     body {
       margin: 0;
       padding: 0;
-      background-color: #ffffff;
-    }
-    .loading {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      font-family: Arial, sans-serif;
+      background-color: #FFFBFE;
     }
   </style>
+  
+  <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport">
 </head>
 <body>
-  <div id="loading" class="loading">
-    <div>Loading...</div>
-  </div>
   <script>
     window.addEventListener('load', function(ev) {
       _flutter.loader.loadEntrypoint({
         onEntrypointLoaded: function(engineInitializer) {
           engineInitializer.initializeEngine().then(function(appRunner) {
-            document.getElementById('loading').style.display = 'none';
             appRunner.runApp();
           });
         }
       });
     });
   </script>
-  <script src="flutter.js" defer></script>
-</body>
-</html>
+  <script src="flutter.js" defer=""></script>
+
+</body></html>

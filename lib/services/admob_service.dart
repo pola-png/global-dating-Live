@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'analytics_service.dart';
@@ -5,27 +6,27 @@ import 'analytics_service.dart';
 class AdMobService {
   static String get bannerAdUnitId {
     if (Platform.isAndroid) {
-      return 'ca-app-pub-3088816615654692/1257679027';
+      return 'ca-app-pub-3088816615654692/3557569577';
     } else if (Platform.isIOS) {
-      return 'ca-app-pub-3088816615654692/1257679027';
+      return 'ca-app-pub-3088816615654692/3557569577';
     }
     throw UnsupportedError('Unsupported platform');
   }
 
   static String get nativeAdUnitId {
     if (Platform.isAndroid) {
-      return 'ca-app-pub-3088816615654692/1644691837';
+      return 'ca-app-pub-3088816615654692/6151943324';
     } else if (Platform.isIOS) {
-      return 'ca-app-pub-3088816615654692/1644691837';
+      return 'ca-app-pub-3088816615654692/6151943324';
     }
     throw UnsupportedError('Unsupported platform');
   }
 
   static String get rewardedAdUnitId {
     if (Platform.isAndroid) {
-      return 'ca-app-pub-3088816615654692/5089112823';
+      return 'ca-app-pub-3088816615654692/5305797337';
     } else if (Platform.isIOS) {
-      return 'ca-app-pub-3088816615654692/5089112823';
+      return 'ca-app-pub-3088816615654692/5305797337';
     }
     throw UnsupportedError('Unsupported platform');
   }
@@ -75,7 +76,7 @@ class AdMobService {
   }
 
   static Future<RewardedAd?> loadRewardedAd() async {
-    RewardedAd? rewardedAd;
+    final completer = Completer<RewardedAd?>();
     
     try {
       await RewardedAd.load(
@@ -83,27 +84,27 @@ class AdMobService {
         request: const AdRequest(),
         rewardedAdLoadCallback: RewardedAdLoadCallback(
           onAdLoaded: (ad) {
-            rewardedAd = ad;
+            completer.complete(ad);
           },
           onAdFailedToLoad: (error) {
-            rewardedAd = null;
+            completer.complete(null);
           },
         ),
       );
       
-      // Wait a bit for ad to load
-      await Future.delayed(const Duration(seconds: 2));
+      return await completer.future;
     } catch (e) {
-      rewardedAd = null;
+      return null;
     }
-    
-    return rewardedAd;
   }
 
   static Future<bool> showRewardedAd(RewardedAd ad) async {
+    bool adShown = false;
     bool rewarded = false;
+    
     ad.fullScreenContentCallback = FullScreenContentCallback(
       onAdShowedFullScreenContent: (ad) {
+        adShown = true;
         AnalyticsService.logAdImpression(adType: 'rewarded', placement: 'action');
       },
       onAdDismissedFullScreenContent: (ad) {
@@ -121,6 +122,7 @@ class AdMobService {
       },
     );
 
-    return rewarded;
+    // If ad was shown but reward callback didn't fire, still consider it watched
+    return adShown || rewarded;
   }
 }

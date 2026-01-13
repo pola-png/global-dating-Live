@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 import 'services/appwrite_service.dart';
 import 'services/push_registration_service.dart';
@@ -35,8 +37,17 @@ final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Initialize Flutter Animate
+  Animate.restartOnHotReload = true;
+
   if (!kIsWeb) {
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    
+    // Set preferred orientations for mobile
+    await SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
   }
   
   try {
@@ -63,6 +74,14 @@ void main() async {
     // Continue without Firebase on web if it fails
   }
 
+  // Check connectivity
+  bool hasConnectivity = true;
+  try {
+    final connectivityResult = await Connectivity().checkConnectivity();
+    hasConnectivity = !connectivityResult.contains(ConnectivityResult.none);
+  } catch (e) {
+    debugPrint('Connectivity check error: $e');
+  }
   final prefs = await SharedPreferences.getInstance();
   final bool isOfAge = prefs.getBool('is_of_age') ?? false;
 
@@ -76,7 +95,11 @@ void main() async {
     hasSession = false;
   }
 
-  runApp(MainApp(isOfAge: isOfAge, hasSession: hasSession));
+  runApp(MainApp(
+    isOfAge: isOfAge, 
+    hasSession: hasSession,
+    hasConnectivity: hasConnectivity,
+  ));
   
   if (!kIsWeb) {
     _startRealtimeNotifications();
@@ -87,8 +110,14 @@ void main() async {
 class MainApp extends StatelessWidget {
   final bool isOfAge;
   final bool hasSession;
+  final bool hasConnectivity;
 
-  const MainApp({super.key, required this.isOfAge, required this.hasSession});
+  const MainApp({
+    super.key, 
+    required this.isOfAge, 
+    required this.hasSession,
+    required this.hasConnectivity,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -98,7 +127,10 @@ class MainApp extends StatelessWidget {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.system,
-      initialRoute: !isOfAge ? '/age-gate' : (hasSession ? '/home' : '/login'),
+      initialRoute: !hasConnectivity 
+          ? '/offline' 
+          : (!isOfAge ? '/age-gate' : (hasSession ? '/home' : '/login')),
+      debugShowCheckedModeBanner: false,
       builder: (context, child) {
         final brightness = Theme.of(context).brightness;
         final overlay = brightness == Brightness.dark

@@ -6,6 +6,7 @@ import 'package:livekit_client/livekit_client.dart' hide ConnectionState;
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../components/avatar_widget.dart';
 import '../config/appwrite_config.dart';
 import '../config/livekit_config.dart';
 import '../services/appwrite_service.dart';
@@ -26,6 +27,7 @@ class _LiveStreamTabState extends State<LiveStreamTab> with AutomaticKeepAliveCl
   List<Map<String, dynamic>> _sessions = [];
   bool _isLoading = true;
   bool _busy = false;
+  bool _watchingAds = false;
   Map<String, dynamic>? _myActiveStream;
 
   @override
@@ -94,6 +96,17 @@ class _LiveStreamTabState extends State<LiveStreamTab> with AutomaticKeepAliveCl
   Future<void> _startLive() async {
     if (_busy) return;
     
+    // Check if user has active stream first
+    if (_myActiveStream != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => LiveRoomScreen(session: _myActiveStream!, isHost: true),
+        ),
+      );
+      return;
+    }
+    
     if (kIsWeb) {
       _startLiveWithCoins();
       return;
@@ -103,7 +116,7 @@ class _LiveStreamTabState extends State<LiveStreamTab> with AutomaticKeepAliveCl
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Start Live Stream'),
-        content: const Text('Cost: 50 coins\n\nOr watch 2 ads for free!'),
+        content: const Text('Cost: 50 coins\n\nOr watch an ad for free!'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -112,25 +125,40 @@ class _LiveStreamTabState extends State<LiveStreamTab> with AutomaticKeepAliveCl
           TextButton(
             onPressed: () async {
               Navigator.pop(ctx);
-              final ad1 = await AdMobService.loadRewardedAd();
-              if (ad1 != null) {
-                final rewarded1 = await AdMobService.showRewardedAd(ad1);
-                if (rewarded1 && mounted) {
-                  final ad2 = await AdMobService.loadRewardedAd();
-                  if (ad2 != null) {
-                    final rewarded2 = await AdMobService.showRewardedAd(ad2);
-                    if (rewarded2 && mounted) {
-                      _startLiveWithoutCost();
-                    }
+              setState(() => _watchingAds = true);
+              try {
+                final ad = await AdMobService.loadRewardedAd();
+                if (ad == null) {
+                  if (mounted) {
+                    setState(() => _watchingAds = false);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Ad not available, try again later')),
+                    );
                   }
+                  return;
                 }
-              } else if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Ad not available')),
-                );
+                
+                final rewarded = await AdMobService.showRewardedAd(ad);
+                if (mounted) {
+                  setState(() => _watchingAds = false);
+                  // Always start stream after ad is shown
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('✓ Starting live stream...'), backgroundColor: Colors.green, duration: Duration(seconds: 1)),
+                  );
+                  await _startLiveWithoutCost();
+                }
+              } catch (e) {
+                // If ad was shown but callback failed, still start stream
+                if (mounted) {
+                  setState(() => _watchingAds = false);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('✓ Starting live stream...'), backgroundColor: Colors.green, duration: Duration(seconds: 1)),
+                  );
+                  await _startLiveWithoutCost();
+                }
               }
             },
-            child: const Text('Watch 2 Ads'),
+            child: const Text('Watch Ad'),
           ),
           ElevatedButton(
             onPressed: () {
@@ -145,18 +173,21 @@ class _LiveStreamTabState extends State<LiveStreamTab> with AutomaticKeepAliveCl
   }
   
   Future<void> _startLiveWithoutCost() async {
-    setState(() => _busy = true);
+    setState(() {
+      _busy = true;
+      _watchingAds = false;
+    });
     
     try {
       final userId = await SessionStore.ensureUserId();
       if (userId == null) {
         if (mounted) {
+          setState(() => _busy = false);
           Navigator.pushNamed(context, '/login');
         }
         return;
       }
       
-      // If user already has an active stream, resume it
       if (_myActiveStream != null) {
         if (!mounted) return;
         setState(() => _busy = false);
@@ -169,12 +200,11 @@ class _LiveStreamTabState extends State<LiveStreamTab> with AutomaticKeepAliveCl
         return;
       }
       
-      const cost = 50;
       final user = await AppwriteService.account.get();
       final docId = ID.unique();
       final insert = {
         'hostId': user.$id,
-        'title': 'Live with ${user.name}',
+        'title': user.name,
         'hostName': user.name,
         'viewerCount': 0,
         'createdAt': DateTime.now().toIso8601String(),
@@ -191,17 +221,23 @@ class _LiveStreamTabState extends State<LiveStreamTab> with AutomaticKeepAliveCl
       
       final saved = {...doc.data, 'id': doc.$id};
       
+      // Update local state immediately
+      setState(() {
+        _myActiveStream = saved;
+        _sessions.insert(0, saved);
+      });
+      
       if (!mounted) return;
       setState(() => _busy = false);
-      
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => LiveRoomScreen(session: saved, isHost: true),
-        ),
-      );
-      
-      await _loadSessions();
+
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => LiveRoomScreen(session: saved, isHost: true),
+          ),
+        );
+      }
     } catch (e) {
       if (mounted) {
         setState(() => _busy = false);
@@ -241,7 +277,7 @@ class _LiveStreamTabState extends State<LiveStreamTab> with AutomaticKeepAliveCl
       final docId = ID.unique();
       final insert = {
         'hostId': user.$id,
-        'title': 'Live with ${user.name}',
+        'title': user.name,
         'hostName': user.name,
         'viewerCount': 0,
         'createdAt': DateTime.now().toIso8601String(),
@@ -300,9 +336,8 @@ class _LiveStreamTabState extends State<LiveStreamTab> with AutomaticKeepAliveCl
     
     final currentUserId = await SessionStore.ensureUserId();
     if (currentUserId == null) {
-      if (mounted) {
-        Navigator.pushNamed(context, '/login');
-      }
+      if (!mounted) return;
+      Navigator.pushNamed(context, '/login');
       return;
     }
     
@@ -338,16 +373,33 @@ class _LiveStreamTabState extends State<LiveStreamTab> with AutomaticKeepAliveCl
           TextButton(
             onPressed: () async {
               Navigator.pop(ctx);
-              final ad = await AdMobService.loadRewardedAd();
-              if (ad != null) {
+              try {
+                final ad = await AdMobService.loadRewardedAd();
+                if (ad == null) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Ad not available, try again later')),
+                    );
+                  }
+                  return;
+                }
+                
                 final rewarded = await AdMobService.showRewardedAd(ad);
-                if (rewarded && mounted) {
+                if (mounted) {
+                  // Always join stream after ad is shown
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('✓ Joining stream...'), backgroundColor: Colors.green, duration: Duration(seconds: 1)),
+                  );
                   _joinWithoutCost(session);
                 }
-              } else if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Ad not available')),
-                );
+              } catch (e) {
+                // If ad was shown but callback failed, still join
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('✓ Joining stream...'), backgroundColor: Colors.green, duration: Duration(seconds: 1)),
+                  );
+                  _joinWithoutCost(session);
+                }
               }
             },
             child: const Text('Watch Ad'),
@@ -402,7 +454,6 @@ class _LiveStreamTabState extends State<LiveStreamTab> with AutomaticKeepAliveCl
       
       final isHost = session['hostId'] == currentUserId;
       
-      // Host shouldn't join their own stream via this method
       if (isHost) {
         if (mounted) {
           setState(() => _busy = false);
@@ -427,7 +478,6 @@ class _LiveStreamTabState extends State<LiveStreamTab> with AutomaticKeepAliveCl
         return;
       }
 
-      // Update viewer count
       try {
         await AppwriteService.databases.updateDocument(
           databaseId: AppwriteConfig.databaseId,
@@ -463,60 +513,81 @@ class _LiveStreamTabState extends State<LiveStreamTab> with AutomaticKeepAliveCl
     return ResponsivePage(
       maxWidth: 1000,
       padding: const EdgeInsets.all(12),
-      child: Column(
+      child: Stack(
         children: [
-          Card(
-            child: ListTile(
-              leading: const Icon(LucideIcons.radioTower),
-              title: const Text('Go Live'),
-              subtitle: const Text(
-                'Cost: 50 coins to start. Viewers pay 20 coins to join.',
+          Column(
+            children: [
+              Card(
+                child: ListTile(
+                  leading: const Icon(LucideIcons.radioTower),
+                  title: const Text('Go Live'),
+                  subtitle: const Text(
+                    'Cost: 50 coins to start. Viewers pay 20 coins to join.',
+                  ),
+                  trailing: ElevatedButton(
+                    onPressed: _busy ? null : _startLive,
+                    child: _busy
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Text(_myActiveStream != null ? 'Resume' : 'Start'),
+                  ),
+                ),
               ),
-              trailing: ElevatedButton(
-                onPressed: _busy ? null : _startLive,
-                child: _busy
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Text(_myActiveStream != null ? 'Resume' : 'Start'),
+              const SizedBox(height: 12),
+              Expanded(
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _sessions.isEmpty
+                        ? const Center(
+                            child:
+                                Text('No live sessions yet. Be the first to go live!'),
+                          )
+                        : ListView.builder(
+                            itemCount: _sessions.length,
+                            itemBuilder: (context, index) {
+                              final session = _sessions[index];
+                              final isMyStream = _myActiveStream != null && session['id'] == _myActiveStream!['id'];
+                              
+                              return Card(
+                                child: ListTile(
+                                  leading: const Icon(LucideIcons.video),
+                                  title: Text(session['title'] ?? 'Live stream'),
+                                  subtitle: Text(
+                                    'Host: ${session['hostName'] ?? 'Unknown'} · ${session['viewerCount'] ?? 0} viewers',
+                                  ),
+                                  trailing: isMyStream
+                                      ? null
+                                      : ElevatedButton(
+                                          onPressed: _busy ? null : () => _join(session),
+                                          child: const Text('Join (20 coins)'),
+                                        ),
+                                ),
+                              );
+                            },
+                          ),
+              ),
+            ],
+          ),
+          if (_watchingAds)
+            Container(
+              color: Colors.black54,
+              child: const Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(color: Colors.white),
+                    SizedBox(height: 16),
+                    Text(
+                      'Loading ads...',
+                      style: TextStyle(color: Colors.white, fontSize: 16),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 12),
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _sessions.isEmpty
-                    ? const Center(
-                        child:
-                            Text('No live sessions yet. Be the first to go live!'),
-                      )
-                    : ListView.builder(
-                        itemCount: _sessions.length,
-                        itemBuilder: (context, index) {
-                          final session = _sessions[index];
-                          final isMyStream = _myActiveStream != null && session['id'] == _myActiveStream!['id'];
-                          
-                          return Card(
-                            child: ListTile(
-                              leading: const Icon(LucideIcons.video),
-                              title: Text(session['title'] ?? 'Live stream'),
-                              subtitle: Text(
-                                'Host: ${session['hostName'] ?? 'Unknown'} · ${session['viewerCount'] ?? 0} viewers',
-                              ),
-                              trailing: isMyStream
-                                  ? null
-                                  : ElevatedButton(
-                                      onPressed: _busy ? null : () => _join(session),
-                                      child: const Text('Join (20 coins)'),
-                                    ),
-                            ),
-                          );
-                        },
-                      ),
-          ),
         ],
       ),
     );
@@ -543,7 +614,6 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> with TickerProviderStat
   final ScrollController _scrollController = ScrollController();
   RealtimeSubscription? _subscription;
   bool _sending = false;
-  String? _replyingTo;
   bool _hasRequestedCoHost = false;
   String? _pendingRequestUserId;
   String? _pendingRequestUserName;
@@ -764,7 +834,6 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> with TickerProviderStat
       final room = _liveKitRoom!;
       final remoteParticipants = room.remoteParticipants.values.toList();
       
-      // Show split screen if there's a co-host
       if ((widget.isHost || _isCoHost) && remoteParticipants.isNotEmpty) {
         final remote = remoteParticipants.first;
         final remoteVideoTrack = remote.videoTrackPublications.where((pub) => pub.track != null).firstOrNull?.track as VideoTrack?;
@@ -784,7 +853,6 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> with TickerProviderStat
         );
       }
       
-      // Regular viewer mode
       if (!widget.isHost && !_isCoHost && remoteParticipants.isNotEmpty) {
         final remote = remoteParticipants.first;
         final videoTrack = remote.videoTrackPublications.where((pub) => pub.track != null).firstOrNull?.track as VideoTrack?;
@@ -793,7 +861,6 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> with TickerProviderStat
         }
       }
 
-      // Host/Co-host solo mode
       if (widget.isHost || _isCoHost) {
         final local = room.localParticipant;
         final videoTrack = local?.videoTrackPublications.where((pub) => pub.track != null).firstOrNull?.track as VideoTrack?;
@@ -874,9 +941,7 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> with TickerProviderStat
                 'id': d.$id,
               }).toList().reversed);
       });
-    } catch (_) {
-      // Ignore; chat is best-effort.
-    }
+    } catch (_) {}
   }
 
   void _subscribeRealtime() {
@@ -899,7 +964,6 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> with TickerProviderStat
         });
       });
       
-      // Auto scroll to bottom
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (_scrollController.hasClients) {
           _scrollController.animateTo(
@@ -1105,29 +1169,6 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> with TickerProviderStat
     }
   }
 
-  void _showInviteDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Invite Co-Host'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Tap on a viewer\'s avatar in chat to invite them as co-host.'),
-            const SizedBox(height: 8),
-            const Text('Co-hosts can go live with you!', style: TextStyle(fontSize: 12, color: Colors.grey)),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -1137,7 +1178,6 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> with TickerProviderStat
       ),
       body: Stack(
         children: [
-          // Full-screen live area (like TikTok live).
           Positioned.fill(
             child: Container(
               color: Colors.black,
@@ -1145,7 +1185,6 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> with TickerProviderStat
             ),
           ),
 
-          // Emoji animations overlay
           ..._emojiAnimations.asMap().entries.map((entry) {
             final index = entry.key;
             final controller = entry.value;
@@ -1176,7 +1215,6 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> with TickerProviderStat
             );
           }),
 
-          // Top overlay with host / viewer info and End/Leave button.
           Positioned(
             left: 16,
             right: 16,
@@ -1203,7 +1241,7 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> with TickerProviderStat
                     '${widget.session['viewerCount'] ?? 0} viewers',
                     style: const TextStyle(color: Colors.white70, fontSize: 12),
                   ),
-                  if (!kIsWeb && _adCountdown > 0) ...[
+                  if (!kIsWeb && _adCountdown > 0) ...[ 
                     const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -1235,7 +1273,6 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> with TickerProviderStat
             ),
           ),
 
-          // Floating + button for viewers to request co-host
           if (!widget.isHost && !_isCoHost)
             Positioned(
               right: 16,
@@ -1282,7 +1319,6 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> with TickerProviderStat
               ),
             ),
 
-          // Bottom overlay with chat list and input placeholder.
           Positioned(
             left: 0,
             right: 0,
@@ -1328,7 +1364,7 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> with TickerProviderStat
                                   key: Key(msg['id'] ?? index.toString()),
                                   direction: DismissDirection.startToEnd,
                                   confirmDismiss: (direction) async {
-                                    setState(() => _replyingTo = sender);
+                                    setState(() {});
                                     _messageController.text = '@$sender ';
                                     return false;
                                   },
@@ -1344,21 +1380,12 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> with TickerProviderStat
                                       children: [
                                         GestureDetector(
                                           onTap: () => Navigator.pushNamed(context, '/profile/$senderId'),
-                                          child: avatarFileId.isNotEmpty
-                                              ? CircleAvatar(
-                                                  radius: 14,
-                                                  backgroundImage: NetworkImage(
-                                                    StorageService.buildFileUrl(avatarFileId),
-                                                  ),
-                                                )
-                                              : CircleAvatar(
-                                                  radius: 14,
-                                                  backgroundColor: Colors.primaries[sender.hashCode % Colors.primaries.length],
-                                                  child: Text(
-                                                    sender.isNotEmpty ? sender[0].toUpperCase() : 'U',
-                                                    style: const TextStyle(color: Colors.white, fontSize: 12),
-                                                  ),
-                                                ),
+                                          child: AvatarWidget(
+                                            avatarUrl: avatarFileId.isNotEmpty ? avatarFileId : null,
+                                            photos: null,
+                                            avatarLetter: sender.isNotEmpty ? sender[0].toUpperCase() : 'U',
+                                            radius: 14,
+                                          ),
                                         ),
                                         if (widget.isHost && senderId != widget.session['hostId'] && senderId != widget.session['coHostId'])
                                           GestureDetector(
@@ -1495,7 +1522,6 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> with TickerProviderStat
     );
   }
 }
-
 
 class _GuideDialog extends StatefulWidget {
   final List<Map<String, dynamic>> guides;

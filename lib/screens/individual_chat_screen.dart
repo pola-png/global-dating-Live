@@ -2,11 +2,14 @@ import 'package:appwrite/appwrite.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../components/report_dialog.dart';
+import '../components/avatar_widget.dart';
 import '../components/responsive_page.dart';
 import '../config/appwrite_config.dart';
 import '../services/appwrite_service.dart';
 import '../services/admob_service.dart';
+import '../services/storage_service.dart';
 import 'video_call_screen.dart';
 
 class IndividualChatScreen extends StatefulWidget {
@@ -421,31 +424,30 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> with Automa
         foregroundColor: Colors.white,
         elevation: 0,
         title: GestureDetector(
-          onTap: () => Navigator.pushNamed(
-            context,
-            '/profile/${widget.otherUser['id']}',
-          ),
+          onTap: () {
+            final userId = widget.otherUser['id'] ?? widget.otherUser['\$id'] ?? widget.otherUser['userId'];
+            if (userId != null) {
+              Navigator.pushNamed(
+                context,
+                '/profile/$userId',
+              );
+            }
+          },
           child: Row(
             children: [
               Container(
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: Colors.white.withOpacity(0.3),
+                    color: Colors.white.withValues(alpha: 0.3),
                     width: 2,
                   ),
                 ),
-                child: CircleAvatar(
+                child: AvatarWidget(
+                  avatarUrl: widget.otherUser['avatarPath'] as String?,
+                  photos: widget.otherUser['photos'] != null ? List<String>.from(widget.otherUser['photos']) : null,
+                  avatarLetter: widget.otherUser['avatarLetter'] ?? 'U',
                   radius: 18,
-                  backgroundColor: Colors.white.withOpacity(0.2),
-                  child: Text(
-                    widget.otherUser['avatarLetter'] ?? 'U',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -464,7 +466,7 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> with Automa
                       'Tap to view profile',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.white.withOpacity(0.8),
+                        color: Colors.white.withValues(alpha: 0.8),
                       ),
                     ),
                   ],
@@ -480,7 +482,7 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> with Automa
               icon: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(LucideIcons.video, size: 20),
@@ -556,7 +558,7 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> with Automa
             icon: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.white.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(LucideIcons.moreVertical, size: 20),
@@ -600,7 +602,7 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> with Automa
                   ? const Center(child: CircularProgressIndicator())
                   : Container(
                       decoration: BoxDecoration(
-                        color: colorScheme.surfaceVariant.withOpacity(0.3),
+                        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                         borderRadius: const BorderRadius.vertical(
                           top: Radius.circular(24),
                         ),
@@ -632,10 +634,10 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> with Automa
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: colorScheme.surfaceVariant.withOpacity(0.5),
+                  color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: colorScheme.primary.withOpacity(0.3),
+                    color: colorScheme.primary.withValues(alpha: 0.3),
                   ),
                 ),
                 child: Row(
@@ -668,7 +670,7 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> with Automa
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               fontSize: 14,
-                              color: colorScheme.onSurface.withOpacity(0.8),
+                              color: colorScheme.onSurface.withValues(alpha: 0.8),
                             ),
                           ),
                         ],
@@ -679,7 +681,7 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> with Automa
                       icon: Icon(
                         LucideIcons.x,
                         size: 20,
-                        color: colorScheme.onSurface.withOpacity(0.6),
+                        color: colorScheme.onSurface.withValues(alpha: 0.6),
                       ),
                       style: IconButton.styleFrom(
                         backgroundColor: colorScheme.surface,
@@ -698,7 +700,7 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> with Automa
                 color: colorScheme.surface,
                 border: Border(
                   top: BorderSide(
-                    color: colorScheme.outline.withOpacity(0.2),
+                    color: colorScheme.outline.withValues(alpha: 0.2),
                   ),
                 ),
               ),
@@ -709,10 +711,10 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> with Automa
                     Expanded(
                       child: Container(
                         decoration: BoxDecoration(
-                          color: colorScheme.surfaceVariant.withOpacity(0.5),
+                          color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                           borderRadius: BorderRadius.circular(24),
                           border: Border.all(
-                            color: colorScheme.outline.withOpacity(0.2),
+                            color: colorScheme.outline.withValues(alpha: 0.2),
                           ),
                         ),
                         child: TextField(
@@ -726,7 +728,7 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> with Automa
                               vertical: 12,
                             ),
                             hintStyle: TextStyle(
-                              color: colorScheme.onSurface.withOpacity(0.6),
+                              color: colorScheme.onSurface.withValues(alpha: 0.6),
                             ),
                           ),
                           onSubmitted: (_) => _sendMessage(),
@@ -744,7 +746,7 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> with Automa
                         borderRadius: BorderRadius.circular(24),
                         boxShadow: [
                           BoxShadow(
-                            color: colorScheme.primary.withOpacity(0.3),
+                            color: colorScheme.primary.withValues(alpha: 0.3),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
                           ),
@@ -777,174 +779,195 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> with Automa
     final colorScheme = Theme.of(context).colorScheme;
     final currentUserId = SessionStore.userId;
     final isCurrentUser = message['senderId'] == currentUserId;
-    final sender = message['sender'] ?? {};
+    final senderId = message['senderId'] ?? '';
 
-    return GestureDetector(
-      onDoubleTap: () => _startReply(message),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 16),
-        child: Row(
-          mainAxisAlignment: isCurrentUser 
-              ? MainAxisAlignment.end 
-              : MainAxisAlignment.start,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            if (!isCurrentUser) ...[
-              GestureDetector(
-                onTap: () => Navigator.pushNamed(
-                  context,
-                  '/profile/${message['senderId']}',
-                ),
-                child: Container(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: colorScheme.primary.withOpacity(0.3),
-                      width: 2,
-                    ),
-                  ),
-                  child: CircleAvatar(
-                    radius: 16,
-                    backgroundColor: colorScheme.primary,
-                    child: Text(
-                      sender['avatarLetter'] ?? 'U',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-            ],
-            Flexible(
-              child: Column(
-                crossAxisAlignment: isCurrentUser 
-                    ? CrossAxisAlignment.end 
-                    : CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    constraints: BoxConstraints(
-                      maxWidth: MediaQuery.of(context).size.width * 0.75,
-                    ),
-                    decoration: BoxDecoration(
-                      gradient: isCurrentUser 
-                          ? LinearGradient(
-                              colors: [colorScheme.primary, colorScheme.secondary],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            )
-                          : null,
-                      color: isCurrentUser 
-                          ? null
-                          : colorScheme.surfaceVariant.withOpacity(0.8),
-                      borderRadius: BorderRadius.only(
-                        topLeft: const Radius.circular(20),
-                        topRight: const Radius.circular(20),
-                        bottomLeft: Radius.circular(isCurrentUser ? 20 : 4),
-                        bottomRight: Radius.circular(isCurrentUser ? 4 : 20),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
+    return FutureBuilder<Map<String, dynamic>?>(
+      future: _getAuthorProfile(senderId),
+      builder: (context, snapshot) {
+        final author = snapshot.data ?? {};
+        final authorName = author['fullName'] ?? 'Unknown User';
+
+        return GestureDetector(
+          onDoubleTap: () => _startReply(message),
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 16),
+            child: Row(
+              mainAxisAlignment: isCurrentUser 
+                  ? MainAxisAlignment.end 
+                  : MainAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                if (!isCurrentUser) ...[
+                  GestureDetector(
+                    onTap: () {
+                      final userId = message['senderId'];
+                      if (userId != null && userId.isNotEmpty) {
+                        Navigator.pushNamed(
+                          context,
+                          '/profile/$userId',
+                        );
+                      }
+                    },
+                    child: Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: colorScheme.primary.withValues(alpha: 0.3),
+                          width: 2,
                         ),
-                      ],
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Reply context
-                          if (message['reply_to'] != null)
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              margin: const EdgeInsets.only(bottom: 8),
-                              decoration: BoxDecoration(
-                                color: isCurrentUser 
-                                    ? Colors.white.withOpacity(0.2)
-                                    : colorScheme.surface.withOpacity(0.8),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: isCurrentUser
-                                      ? Colors.white.withOpacity(0.3)
-                                      : colorScheme.outline.withOpacity(0.3),
+                      child: AvatarWidget(
+                        avatarUrl: author['avatarPath'] as String?,
+                        photos: author['photos'] != null ? List<String>.from(author['photos']) : null,
+                        avatarLetter: authorName.isNotEmpty ? authorName[0].toUpperCase() : 'U',
+                        radius: 16,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                Flexible(
+                  child: Column(
+                    crossAxisAlignment: isCurrentUser 
+                        ? CrossAxisAlignment.end 
+                        : CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        constraints: BoxConstraints(
+                          maxWidth: MediaQuery.of(context).size.width * 0.75,
+                        ),
+                        decoration: BoxDecoration(
+                          gradient: isCurrentUser 
+                              ? LinearGradient(
+                                  colors: [colorScheme.primary, colorScheme.secondary],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                )
+                              : null,
+                          color: isCurrentUser 
+                              ? null
+                              : colorScheme.surfaceContainerHighest.withValues(alpha: 0.8),
+                          borderRadius: BorderRadius.only(
+                            topLeft: const Radius.circular(20),
+                            topRight: const Radius.circular(20),
+                            bottomLeft: Radius.circular(isCurrentUser ? 20 : 4),
+                            bottomRight: Radius.circular(isCurrentUser ? 4 : 20),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.1),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Reply context
+                              if (message['reply_to'] != null)
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  decoration: BoxDecoration(
+                                    color: isCurrentUser 
+                                        ? Colors.white.withValues(alpha: 0.2)
+                                        : colorScheme.surface.withValues(alpha: 0.8),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: isCurrentUser
+                                          ? Colors.white.withValues(alpha: 0.3)
+                                          : colorScheme.outline.withValues(alpha: 0.3),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    message['reply_to']['text'],
+                                    style: TextStyle(
+                                      color: isCurrentUser 
+                                          ? Colors.white.withValues(alpha: 0.8)
+                                          : colorScheme.onSurface.withValues(alpha: 0.7),
+                                      fontSize: 12,
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
-                              ),
-                              child: Text(
-                                message['reply_to']['text'],
+                              // Message text
+                              Text(
+                                message['text'] ?? '',
                                 style: TextStyle(
                                   color: isCurrentUser 
-                                      ? Colors.white.withOpacity(0.8)
-                                      : colorScheme.onSurface.withOpacity(0.7),
-                                  fontSize: 12,
-                                  fontStyle: FontStyle.italic,
+                                      ? Colors.white 
+                                      : colorScheme.onSurface,
+                                  fontSize: 16,
+                                  height: 1.3,
                                 ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
                               ),
-                            ),
-                          // Message text
-                          Text(
-                            message['text'] ?? '',
-                            style: TextStyle(
-                              color: isCurrentUser 
-                                  ? Colors.white 
-                                  : colorScheme.onSurface,
-                              fontSize: 16,
-                              height: 1.3,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  // Timestamp and status
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4, left: 8, right: 8),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          _formatTime(message['createdAt'] as String),
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: colorScheme.onSurface.withOpacity(0.6),
-                            fontWeight: FontWeight.w500,
+                            ],
                           ),
                         ),
-                        if (isCurrentUser) ...[
-                          const SizedBox(width: 4),
-                          Icon(
-                            message['status'] == 'failed'
-                                ? LucideIcons.xCircle
-                                : message['isRead'] == true
-                                    ? LucideIcons.checkCheck
-                                    : LucideIcons.check,
-                            size: 14,
-                            color: message['status'] == 'failed'
-                                ? Colors.red
-                                : message['isRead'] == true
-                                    ? colorScheme.primary
-                                    : colorScheme.onSurface.withOpacity(0.6),
-                          ),
-                        ],
-                      ],
-                    ),
+                      ),
+                      // Timestamp and status
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4, left: 8, right: 8),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _formatTime(message['createdAt'] as String),
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: colorScheme.onSurface.withValues(alpha: 0.6),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            if (isCurrentUser) ...[
+                              const SizedBox(width: 4),
+                              Icon(
+                                message['status'] == 'failed'
+                                    ? LucideIcons.xCircle
+                                    : message['isRead'] == true
+                                        ? LucideIcons.checkCheck
+                                        : LucideIcons.check,
+                                size: 14,
+                                color: message['status'] == 'failed'
+                                    ? Colors.red
+                                    : message['isRead'] == true
+                                        ? colorScheme.primary
+                                        : colorScheme.onSurface.withValues(alpha: 0.6),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
+  }
+
+  Future<Map<String, dynamic>?> _getAuthorProfile(String userId) async {
+    if (userId.isEmpty) return null;
+    try {
+      final doc = await AppwriteService.databases.getDocument(
+        databaseId: AppwriteConfig.databaseId,
+        collectionId: AppwriteConfig.profilesCollectionId,
+        documentId: userId,
+      );
+      return {...doc.data, 'id': doc.$id};
+    } catch (_) {
+      return null;
+    }
   }
 }

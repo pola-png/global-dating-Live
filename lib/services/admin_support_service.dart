@@ -110,4 +110,10 @@ class AdminSupportService {
       return null;
     }
   }
+
+  static Future<void> sendMessage(String message) async {
+    // This method can be used to send messages to admin support
+    // Implementation would depend on your messaging system
+    debugPrint('Admin support message: $message');
+  }
 }

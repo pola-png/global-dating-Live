@@ -1,4 +1,4 @@
-package com.xapzap.global_dating_chat
+package app3398936.vinebre
 
 import android.content.Context
 import android.widget.TextView

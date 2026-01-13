@@ -1,4 +1,4 @@
-package com.xapzap.global_dating_chat
+package app3398936.vinebre
 
 import android.os.Bundle
 import androidx.core.view.WindowCompat

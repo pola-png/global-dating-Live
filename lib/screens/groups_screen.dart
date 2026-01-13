@@ -335,7 +335,7 @@ class _GroupsScreenState extends State<GroupsScreen> with AutomaticKeepAliveClie
         crossAxisCount: _getCrossAxisCount(context),
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
-        childAspectRatio: 0.85,
+        childAspectRatio: 0.70,
       ),
       itemCount: 12,
       itemBuilder: (context, index) {
@@ -405,7 +405,7 @@ class _GroupsScreenState extends State<GroupsScreen> with AutomaticKeepAliveClie
         crossAxisCount: _getCrossAxisCount(context),
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
-        childAspectRatio: 0.85,
+        childAspectRatio: 0.65,
       ),
       itemCount: _filteredCountries.length,
       itemBuilder: (context, index) {
@@ -495,13 +495,13 @@ class _GroupsScreenState extends State<GroupsScreen> with AutomaticKeepAliveClie
         },
         borderRadius: BorderRadius.circular(16),
         child: Container(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(16),
           child: Column(
             children: [
               // Country flag with modern styling
               Container(
-                width: 64,
-                height: 64,
+                width: 56,
+                height: 56,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(
@@ -534,12 +534,12 @@ class _GroupsScreenState extends State<GroupsScreen> with AutomaticKeepAliveClie
                 ),
               ),
               
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               
               // Country name
               Text(
                 country.name,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
                 textAlign: TextAlign.center,
@@ -547,7 +547,7 @@ class _GroupsScreenState extends State<GroupsScreen> with AutomaticKeepAliveClie
                 overflow: TextOverflow.ellipsis,
               ),
               
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               
               // Member count with modern styling
               Container(
@@ -561,7 +561,7 @@ class _GroupsScreenState extends State<GroupsScreen> with AutomaticKeepAliveClie
                   children: [
                     Icon(
                       LucideIcons.users,
-                      size: 14,
+                      size: 12,
                       color: colorScheme.onSurfaceVariant,
                     ),
                     const SizedBox(width: 4),

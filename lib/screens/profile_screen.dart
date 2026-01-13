@@ -129,17 +129,37 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
   Future<void> _startChat() async {
     if (_profile == null) return;
 
+    // Show toast for ads requirement on mobile
     if (!kIsWeb) {
-      final ad = await AdMobService.loadRewardedAd();
-      if (ad != null) {
-        final rewarded = await AdMobService.showRewardedAd(ad);
-        if (!rewarded) return;
-      } else if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Ad not available')),
-        );
-        return;
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You need to watch ads to start a chat'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      
+      // Small delay to show the toast
+      await Future.delayed(const Duration(milliseconds: 500));
+    }
+
+    // Show loading indicator
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+              ),
+              SizedBox(width: 12),
+              Text('Loading ads...'),
+            ],
+          ),
+          duration: Duration(seconds: 3),
+        ),
+      );
     }
 
     try {
@@ -147,7 +167,6 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
       if (currentUserId == null) return;
 
       final otherUserId = _profile!['id'] as String;
-
       final db = AppwriteService.databases;
 
       final direct = await db.listDocuments(
@@ -188,6 +207,7 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
 
       final chatRoomId = chatRoomDoc.$id;
 
+      // Navigate to chat first
       if (mounted) {
         Navigator.pushNamed(
           context,
@@ -197,6 +217,14 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
             'otherUser': _profile,
           },
         );
+      }
+
+      // Show ad after chat is opened (only on mobile)
+      if (!kIsWeb) {
+        final ad = await AdMobService.loadRewardedAd();
+        if (ad != null) {
+          await AdMobService.showRewardedAd(ad);
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -374,10 +402,20 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
       slivers: [
         // Modern app bar with gradient
         SliverAppBar(
-          expandedHeight: 200,
+          expandedHeight: 280,
           pinned: true,
+          floating: false,
+          snap: false,
           backgroundColor: colorScheme.primary,
           foregroundColor: Colors.white,
+          title: Text(
+            _isOwnProfile ? 'My Profile' : firstName,
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+          centerTitle: true,
           flexibleSpace: FlexibleSpaceBar(
             background: Container(
               decoration: BoxDecoration(
@@ -424,6 +462,11 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                         fontWeight: FontWeight.bold,
                       ),
                     ),
+                    if (_profile!['isBoosted'] == true)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 4),
+                        child: Icon(Icons.verified, color: Colors.white, size: 20),
+                      ),
                     if (isAdmin || isVerified || boostActive)
                       Padding(
                         padding: const EdgeInsets.only(top: 8),
@@ -462,12 +505,6 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                       ),
                   ],
                 ),
-              ),
-            ),
-            title: Text(
-              _isOwnProfile ? 'My Profile' : firstName,
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
               ),
             ),
           ),
@@ -557,18 +594,22 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
               child: OutlinedButton.icon(
                 onPressed: () async {
                   final ad = await AdMobService.loadRewardedAd();
-                  if (ad != null) {
-                    final rewarded = await AdMobService.showRewardedAd(ad);
-                    if (rewarded && mounted) {
-                      await WalletService.addCoins(30);
-                      await _refreshCoins();
+                  if (ad == null) {
+                    if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Earned 30 coins!'), backgroundColor: Colors.green),
+                        const SnackBar(content: Text('Ad not available, try again later')),
                       );
                     }
-                  } else if (mounted) {
+                    return;
+                  }
+                  
+                  await AdMobService.showRewardedAd(ad);
+                  // Always award coins after ad is shown
+                  if (mounted) {
+                    await WalletService.addCoins(30);
+                    await _refreshCoins();
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Ad not available, try again later')),
+                      const SnackBar(content: Text('Successfully earned 30 coins!'), backgroundColor: Colors.green),
                     );
                   }
                 },
@@ -1141,7 +1182,7 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        childAspectRatio: 3,
+        childAspectRatio: 3.5,
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
       ),
