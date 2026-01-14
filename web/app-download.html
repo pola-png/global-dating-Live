@@ -225,58 +225,13 @@
             const downloadBtn = document.getElementById('downloadBtn');
             const downloadStatus = document.getElementById('downloadStatus');
             
-            downloadBtn.addEventListener('click', async function(e) {
-                e.preventDefault();
-                
+            downloadBtn.addEventListener('click', function() {
                 downloadStatus.style.display = 'block';
-                downloadStatus.innerHTML = '⏳ Starting download...';
-                downloadBtn.textContent = 'Downloading...';
-                downloadBtn.style.background = '#4caf50';
-                downloadBtn.style.pointerEvents = 'none';
+                downloadStatus.innerHTML = '⏳ Downloading... Check notification bar';
                 
-                try {
-                    const response = await fetch('/app.apk');
-                    
-                    if (!response.ok) {
-                        throw new Error('File not found');
-                    }
-                    
-                    const contentLength = response.headers.get('content-length');
-                    const total = parseInt(contentLength, 10);
-                    let loaded = 0;
-                    
-                    const reader = response.body.getReader();
-                    const chunks = [];
-                    
-                    while (true) {
-                        const {done, value} = await reader.read();
-                        if (done) break;
-                        
-                        chunks.push(value);
-                        loaded += value.length;
-                        const percent = Math.round((loaded / total) * 100);
-                        downloadStatus.innerHTML = `⏳ Downloading... ${percent}%`;
-                        downloadBtn.textContent = `${percent}%`;
-                    }
-                    
-                    const blob = new Blob(chunks, {type: 'application/vnd.android.package-archive'});
-                    const url = URL.createObjectURL(blob);
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.download = 'Global.Dating.Chat.apk';
-                    link.click();
-                    URL.revokeObjectURL(url);
-                    
-                    downloadStatus.innerHTML = '✓ Download complete! Tap notification to install';
-                    downloadBtn.textContent = '✓ Downloaded';
-                    downloadBtn.style.background = '#2e7d32';
-                    
-                } catch (error) {
-                    // Fallback to direct download
-                    window.location.href = '/app.apk';
-                    downloadStatus.innerHTML = '✓ Downloading... Check your notifications';
-                    downloadBtn.textContent = 'Downloading';
-                }
+                setTimeout(function() {
+                    downloadStatus.innerHTML = '✓ Download complete! Tap the APK notification to install';
+                }, 3000);
             });
         });
     </script>
@@ -301,7 +256,7 @@
                         <div class="rating-number">1K+ downloads</div>
                         <div class="rating-number">Rated for 18+</div>
                     </div>
-                    <a href="https://globaldatingchat.online/app.apk" class="download-btn" id="downloadBtn">
+                    <a href="/app.apk" class="download-btn" id="downloadBtn">
                         Install
                     </a>
                     <div id="downloadStatus" style="display: none; margin-top: 12px; padding: 12px; background: #e8f5e9; border-radius: 8px; color: #2e7d32; font-size: 14px;">
@@ -333,8 +288,9 @@
                 <div class="warning-title">⚠️ Installation Instructions</div>
                 <div class="warning-text">
                     1. Click Install button to download<br>
-                    2. Go to Settings → Security → Unknown Sources and enable it<br>
-                    3. Tap the downloaded APK file to install
+                    2. If browser shows "This type of file can harm your device", click "Download anyway"<br>
+                    3. After download, tap the APK notification to install<br>
+                    4. If prompted, enable "Install from Unknown Sources" in Settings
                 </div>
             </div>
         </div>

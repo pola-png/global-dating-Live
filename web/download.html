@@ -86,57 +86,6 @@
             }
         }
     </style>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const downloadBtn = document.querySelector('.download-btn');
-            let downloading = false;
-            
-            downloadBtn.addEventListener('click', async function(e) {
-                if (downloading) return;
-                downloading = true;
-                e.preventDefault();
-                
-                downloadBtn.innerHTML = '⏳ Starting...';
-                downloadBtn.style.background = '#4caf50';
-                
-                try {
-                    const response = await fetch('https://globaldatingchat.online/app.apk');
-                    const contentLength = response.headers.get('content-length');
-                    const total = parseInt(contentLength, 10);
-                    let loaded = 0;
-                    
-                    const reader = response.body.getReader();
-                    const chunks = [];
-                    
-                    while (true) {
-                        const {done, value} = await reader.read();
-                        if (done) break;
-                        
-                        chunks.push(value);
-                        loaded += value.length;
-                        const percent = Math.round((loaded / total) * 100);
-                        downloadBtn.innerHTML = `⏳ ${percent}%`;
-                    }
-                    
-                    const blob = new Blob(chunks, {type: 'application/vnd.android.package-archive'});
-                    const url = URL.createObjectURL(blob);
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.download = 'Global.Dating.Chat.apk';
-                    link.click();
-                    URL.revokeObjectURL(url);
-                    
-                    downloadBtn.innerHTML = '✓ Tap APK to Install';
-                    downloadBtn.style.background = '#2e7d32';
-                    
-                } catch (error) {
-                    downloadBtn.innerHTML = '❌ Retry Download';
-                    downloadBtn.style.background = '#d32f2f';
-                    downloading = false;
-                }
-            });
-        });
-    </script>
 </head>
 <body>
     <div class="container">
@@ -149,7 +98,7 @@
             Go to Settings > Security > Unknown Sources and enable it to install this app.
         </div>
         
-        <a href="https://globaldatingchat.online/app.apk" class="download-btn" download="Global.Dating.Chat.apk">
+        <a href="/app.apk" class="download-btn">
             📱 Download APK
         </a>
         
