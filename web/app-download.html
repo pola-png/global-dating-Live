@@ -185,7 +185,57 @@
             color: #856404;
             font-size: 14px;
         }
+        @media (max-width: 768px) {
+            .container {
+                padding: 16px;
+            }
+            .app-header {
+                flex-direction: column;
+                align-items: center;
+                text-align: center;
+            }
+            .app-icon {
+                width: 100px;
+                height: 100px;
+                font-size: 50px;
+            }
+            .app-title {
+                font-size: 24px;
+            }
+            .rating {
+                flex-direction: column;
+                gap: 8px;
+            }
+            .download-btn {
+                width: 100%;
+                padding: 16px;
+                font-size: 18px;
+            }
+            .info-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .screenshot {
+                width: 160px;
+                height: 320px;
+            }
+        }
     </style>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const downloadBtn = document.getElementById('downloadBtn');
+            const downloadStatus = document.getElementById('downloadStatus');
+            
+            downloadBtn.addEventListener('click', function() {
+                downloadStatus.style.display = 'block';
+                downloadBtn.textContent = 'Downloading...';
+                downloadBtn.style.background = '#4caf50';
+                
+                setTimeout(function() {
+                    downloadStatus.innerHTML = '✓ Download complete! Tap the APK file to install';
+                }, 2000);
+            });
+        });
+    </script>
 </head>
 <body>
     <div class="header">
@@ -207,9 +257,12 @@
                         <div class="rating-number">1K+ downloads</div>
                         <div class="rating-number">Rated for 18+</div>
                     </div>
-                    <a href="https://globaldatingchat.online/app.apk" class="download-btn">
+                    <a href="https://globaldatingchat.online/app.apk" class="download-btn" id="downloadBtn">
                         Install
                     </a>
+                    <div id="downloadStatus" style="display: none; margin-top: 12px; padding: 12px; background: #e8f5e9; border-radius: 8px; color: #2e7d32; font-size: 14px;">
+                        ✓ Downloading... Check your notifications
+                    </div>
                 </div>
             </div>
 

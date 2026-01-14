@@ -73,7 +73,33 @@
             margin: 20px 0;
             color: #856404;
         }
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            .container {
+                padding: 30px 20px;
+            }
+            .download-btn {
+                width: 100%;
+                padding: 18px;
+            }
+        }
     </style>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const downloadBtn = document.querySelector('.download-btn');
+            
+            downloadBtn.addEventListener('click', function() {
+                downloadBtn.innerHTML = '⏳ Downloading...';
+                downloadBtn.style.background = '#4caf50';
+                
+                setTimeout(function() {
+                    downloadBtn.innerHTML = '✓ Download Complete!';
+                }, 2000);
+            });
+        });
+    </script>
 </head>
 <body>
     <div class="container">
