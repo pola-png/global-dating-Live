@@ -1,6 +1,6 @@
 {
   "installCommand": "if ! command -v flutter &> /dev/null; then git clone https://github.com/flutter/flutter.git -b stable --depth 1 && export PATH=\"$PATH:`pwd`/flutter/bin\"; fi && flutter pub get",
-  "buildCommand": "export PATH=\"$PATH:`pwd`/flutter/bin\" && flutter build web --release && cp public/app.apk build/web/app.apk",
+  "buildCommand": "export PATH=\"$PATH:`pwd`/flutter/bin\" && flutter build web --release && cp public/app.apk build/web/app.apk && cp -r public/screenshots build/web/screenshots",
   "outputDirectory": "build/web",
   "headers": [
     {
