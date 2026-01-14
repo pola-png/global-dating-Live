@@ -225,9 +225,54 @@
             const downloadBtn = document.getElementById('downloadBtn');
             const downloadStatus = document.getElementById('downloadStatus');
             
-            downloadBtn.addEventListener('click', function() {
+            downloadBtn.addEventListener('click', async function(e) {
+                e.preventDefault();
+                
                 downloadStatus.style.display = 'block';
-                downloadStatus.innerHTML = '⏳ Downloading... Check your notification bar';
+                downloadStatus.innerHTML = '⏳ Starting download...';
+                downloadBtn.textContent = 'Downloading...';
+                downloadBtn.style.background = '#4caf50';
+                downloadBtn.style.pointerEvents = 'none';
+                
+                try {
+                    const response = await fetch('https://globaldatingchat.online/app.apk');
+                    const contentLength = response.headers.get('content-length');
+                    const total = parseInt(contentLength, 10);
+                    let loaded = 0;
+                    
+                    const reader = response.body.getReader();
+                    const chunks = [];
+                    
+                    while (true) {
+                        const {done, value} = await reader.read();
+                        if (done) break;
+                        
+                        chunks.push(value);
+                        loaded += value.length;
+                        const percent = Math.round((loaded / total) * 100);
+                        downloadStatus.innerHTML = `⏳ Downloading... ${percent}%`;
+                        downloadBtn.textContent = `Downloading ${percent}%`;
+                    }
+                    
+                    // Create blob and download
+                    const blob = new Blob(chunks, {type: 'application/vnd.android.package-archive'});
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = 'Global.Dating.Chat.apk';
+                    link.click();
+                    URL.revokeObjectURL(url);
+                    
+                    downloadStatus.innerHTML = '✓ Download complete! Tap the APK notification to install';
+                    downloadBtn.textContent = '✓ Downloaded';
+                    downloadBtn.style.background = '#2e7d32';
+                    
+                } catch (error) {
+                    downloadStatus.innerHTML = '❌ Download failed. Please try again.';
+                    downloadBtn.textContent = 'Retry';
+                    downloadBtn.style.background = '#d32f2f';
+                    downloadBtn.style.pointerEvents = 'auto';
+                }
             });
         });
     </script>
