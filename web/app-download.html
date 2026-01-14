@@ -251,10 +251,9 @@
                         loaded += value.length;
                         const percent = Math.round((loaded / total) * 100);
                         downloadStatus.innerHTML = `⏳ Downloading... ${percent}%`;
-                        downloadBtn.textContent = `Downloading ${percent}%`;
+                        downloadBtn.textContent = `${percent}%`;
                     }
                     
-                    // Create blob and download
                     const blob = new Blob(chunks, {type: 'application/vnd.android.package-archive'});
                     const url = URL.createObjectURL(blob);
                     const link = document.createElement('a');
@@ -263,12 +262,12 @@
                     link.click();
                     URL.revokeObjectURL(url);
                     
-                    downloadStatus.innerHTML = '✓ Download complete! Tap the APK notification to install';
+                    downloadStatus.innerHTML = '✓ Download complete! Tap notification to install';
                     downloadBtn.textContent = '✓ Downloaded';
                     downloadBtn.style.background = '#2e7d32';
                     
                 } catch (error) {
-                    downloadStatus.innerHTML = '❌ Download failed. Please try again.';
+                    downloadStatus.innerHTML = '✗ Download failed. Please try again.';
                     downloadBtn.textContent = 'Retry';
                     downloadBtn.style.background = '#d32f2f';
                     downloadBtn.style.pointerEvents = 'auto';
@@ -297,11 +296,11 @@
                         <div class="rating-number">1K+ downloads</div>
                         <div class="rating-number">Rated for 18+</div>
                     </div>
-                    <a href="https://globaldatingchat.online/app.apk" class="download-btn" id="downloadBtn" download="Global.Dating.Chat.apk">
+                    <a href="https://globaldatingchat.online/app.apk" class="download-btn" id="downloadBtn">
                         Install
                     </a>
                     <div id="downloadStatus" style="display: none; margin-top: 12px; padding: 12px; background: #e8f5e9; border-radius: 8px; color: #2e7d32; font-size: 14px;">
-                        ✓ Downloading... Check your notifications
+                        ✓ Downloading... Tap notification when complete to install
                     </div>
                 </div>
             </div>
