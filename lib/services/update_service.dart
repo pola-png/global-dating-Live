@@ -40,7 +40,7 @@ class UpdateService {
       await prefs.setInt(_lastCheckKey, now);
       
       if (updateEnabled && !updateShown && context.mounted) {
-        final downloadUrl = updateDoc.data['downloadUrl'] as String? ?? 'https://globaldatingchat.com/downloads/app-latest.apk';
+        final downloadUrl = updateDoc.data['downloadUrl'] as String? ?? 'https://globaldatingchat.online/download.html';
         final releaseNotes = updateDoc.data['releaseNotes'] as String? ?? 'New version available!';
         
         _showUpdateDialog(context, downloadUrl, releaseNotes);
