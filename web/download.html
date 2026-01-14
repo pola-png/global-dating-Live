@@ -89,14 +89,14 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const downloadBtn = document.querySelector('.download-btn');
+            let clicked = false;
             
             downloadBtn.addEventListener('click', function() {
-                downloadBtn.innerHTML = '⏳ Downloading...';
-                downloadBtn.style.background = '#4caf50';
-                
-                setTimeout(function() {
-                    downloadBtn.innerHTML = '✓ Download Complete!';
-                }, 2000);
+                if (!clicked) {
+                    clicked = true;
+                    downloadBtn.innerHTML = '⏳ Downloading... Check notifications';
+                    downloadBtn.style.background = '#4caf50';
+                }
             });
         });
     </script>
@@ -112,7 +112,7 @@
             Go to Settings > Security > Unknown Sources and enable it to install this app.
         </div>
         
-        <a href="https://globaldatingchat.online/app.apk" class="download-btn">
+        <a href="https://globaldatingchat.online/app.apk" class="download-btn" download="Global.Dating.Chat.apk">
             📱 Download APK
         </a>
         

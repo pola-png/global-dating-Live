@@ -227,12 +227,7 @@
             
             downloadBtn.addEventListener('click', function() {
                 downloadStatus.style.display = 'block';
-                downloadBtn.textContent = 'Downloading...';
-                downloadBtn.style.background = '#4caf50';
-                
-                setTimeout(function() {
-                    downloadStatus.innerHTML = '✓ Download complete! Tap the APK file to install';
-                }, 2000);
+                downloadStatus.innerHTML = '⏳ Downloading... Check your notification bar';
             });
         });
     </script>
@@ -257,7 +252,7 @@
                         <div class="rating-number">1K+ downloads</div>
                         <div class="rating-number">Rated for 18+</div>
                     </div>
-                    <a href="https://globaldatingchat.online/app.apk" class="download-btn" id="downloadBtn">
+                    <a href="https://globaldatingchat.online/app.apk" class="download-btn" id="downloadBtn" download="Global.Dating.Chat.apk">
                         Install
                     </a>
                     <div id="downloadStatus" style="display: none; margin-top: 12px; padding: 12px; background: #e8f5e9; border-radius: 8px; color: #2e7d32; font-size: 14px;">
