@@ -235,7 +235,12 @@
                 downloadBtn.style.pointerEvents = 'none';
                 
                 try {
-                    const response = await fetch('https://globaldatingchat.online/app.apk');
+                    const response = await fetch('/app.apk');
+                    
+                    if (!response.ok) {
+                        throw new Error('File not found');
+                    }
+                    
                     const contentLength = response.headers.get('content-length');
                     const total = parseInt(contentLength, 10);
                     let loaded = 0;
@@ -267,10 +272,10 @@
                     downloadBtn.style.background = '#2e7d32';
                     
                 } catch (error) {
-                    downloadStatus.innerHTML = '✗ Download failed. Please try again.';
-                    downloadBtn.textContent = 'Retry';
-                    downloadBtn.style.background = '#d32f2f';
-                    downloadBtn.style.pointerEvents = 'auto';
+                    // Fallback to direct download
+                    window.location.href = '/app.apk';
+                    downloadStatus.innerHTML = '✓ Downloading... Check your notifications';
+                    downloadBtn.textContent = 'Downloading';
                 }
             });
         });
