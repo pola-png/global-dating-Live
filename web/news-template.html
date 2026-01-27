@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{TITLE}} - Global Dating Chat News</title>
+    <meta name="description" content="{{DESCRIPTION}}">
+    <meta name="keywords" content="{{KEYWORDS}}">
+    <meta name="author" content="Global Dating Chat">
+    <meta name="robots" content="index, follow">
+    
+    <!-- Open Graph -->
+    <meta property="og:title" content="{{TITLE}}">
+    <meta property="og:description" content="{{DESCRIPTION}}">
+    <meta property="og:image" content="{{IMAGE_URL}}">
+    <meta property="og:url" content="https://globaldatingchat.online/news/{{SLUG}}">
+    <meta property="og:type" content="article">
+    
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{TITLE}}">
+    <meta name="twitter:description" content="{{DESCRIPTION}}">
+    <meta name="twitter:image" content="{{IMAGE_URL}}">
+    
+    <!-- Schema.org -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "NewsArticle",
+        "headline": "{{TITLE}}",
+        "description": "{{DESCRIPTION}}",
+        "image": "{{IMAGE_URL}}",
+        "author": {
+            "@type": "Organization",
+            "name": "Global Dating Chat"
+        },
+        "publisher": {
+            "@type": "Organization",
+            "name": "Global Dating Chat",
+            "logo": {
+                "@type": "ImageObject",
+                "url": "https://globaldatingchat.online/icons/Icon-512.png"
+            }
+        },
+        "datePublished": "{{DATE}}",
+        "dateModified": "{{DATE}}"
+    }
+    </script>
+    
+    <link rel="canonical" href="https://globaldatingchat.online/news/{{SLUG}}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --primary: #01875f;
+            --text-primary: #1a1a1a;
+            --text-secondary: #6b7280;
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8fafc;
+            --border: #e5e7eb;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            line-height: 1.7;
+            color: var(--text-primary);
+            background: var(--bg-secondary);
+            font-size: 16px;
+        }
+        
+        .header {
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+        
+        .nav {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            text-decoration: none;
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+        
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+        
+        .nav-links a:hover {
+            color: var(--primary);
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .breadcrumb {
+            margin-bottom: 2rem;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+        
+        .breadcrumb a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+        
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+        
+        .article {
+            background: var(--bg-primary);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+        }
+        
+        .article-header {
+            padding: 3rem 3rem 2rem;
+        }
+        
+        .article-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            line-height: 1.2;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+        }
+        
+        .article-meta {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+        
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .featured-image {
+            width: 100%;
+            height: 400px;
+            object-fit: cover;
+            display: block;
+        }
+        
+        .article-content {
+            padding: 3rem;
+        }
+        
+        .content {
+            font-size: 1.125rem;
+            line-height: 1.8;
+        }
+        
+        .content p {
+            margin-bottom: 1.5rem;
+        }
+        
+        .content h2 {
+            font-size: 1.75rem;
+            font-weight: 600;
+            margin: 2.5rem 0 1rem;
+            color: var(--text-primary);
+        }
+        
+        .content h3 {
+            font-size: 1.375rem;
+            font-weight: 600;
+            margin: 2rem 0 0.75rem;
+            color: var(--text-primary);
+        }
+        
+        .content blockquote {
+            border-left: 4px solid var(--primary);
+            padding-left: 1.5rem;
+            margin: 2rem 0;
+            font-style: italic;
+            color: var(--text-secondary);
+        }
+        
+        .tags {
+            margin-top: 3rem;
+            padding-top: 2rem;
+            border-top: 1px solid var(--border);
+        }
+        
+        .tags-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .tag {
+            display: inline-block;
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            padding: 0.5rem 1rem;
+            margin: 0.25rem 0.5rem 0.25rem 0;
+            border-radius: 50px;
+            font-size: 0.875rem;
+            text-decoration: none;
+            transition: all 0.2s;
+            border: 1px solid var(--border);
+        }
+        
+        .tag:hover {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+        
+        .related {
+            margin-top: 3rem;
+            padding: 2rem;
+            background: var(--bg-primary);
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+        }
+        
+        .related-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+        }
+        
+        .related-articles {
+            display: grid;
+            gap: 1rem;
+        }
+        
+        .related-article {
+            display: flex;
+            gap: 1rem;
+            padding: 1rem;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            text-decoration: none;
+            transition: all 0.2s;
+            border: 1px solid var(--border);
+        }
+        
+        .related-article:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+        
+        .related-image {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 8px;
+            flex-shrink: 0;
+        }
+        
+        .related-content {
+            flex: 1;
+        }
+        
+        .related-article-title {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+            line-height: 1.4;
+        }
+        
+        .related-meta {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+        
+        .share-buttons {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 1px solid var(--border);
+        }
+        
+        .share-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.2s;
+            border: 1px solid var(--border);
+        }
+        
+        .share-btn.twitter {
+            background: #1da1f2;
+            color: white;
+            border-color: #1da1f2;
+        }
+        
+        .share-btn.facebook {
+            background: #4267b2;
+            color: white;
+            border-color: #4267b2;
+        }
+        
+        .share-btn.linkedin {
+            background: #0077b5;
+            color: white;
+            border-color: #0077b5;
+        }
+        
+        @media (max-width: 768px) {
+            .nav {
+                padding: 1rem;
+            }
+            
+            .nav-links {
+                display: none;
+            }
+            
+            .container {
+                padding: 1rem;
+            }
+            
+            .article-header {
+                padding: 2rem 1.5rem 1rem;
+            }
+            
+            .article-title {
+                font-size: 2rem;
+            }
+            
+            .article-content {
+                padding: 2rem 1.5rem;
+            }
+            
+            .featured-image {
+                height: 250px;
+            }
+            
+            .share-buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <nav class="nav">
+            <a href="/" class="logo">Global Dating Chat</a>
+            <ul class="nav-links">
+                <li><a href="/">Home</a></li>
+                <li><a href="/news">News</a></li>
+                <li><a href="/download">Download</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <div class="container">
+        <nav class="breadcrumb">
+            <a href="/">Home</a> › <a href="/news">News</a> › {{TITLE}}
+        </nav>
+        
+        <article class="article">
+            <div class="article-header">
+                <h1 class="article-title">{{TITLE}}</h1>
+                
+                <div class="article-meta">
+                    <div class="meta-item">
+                        <span>📅</span>
+                        <span>{{DATE}}</span>
+                    </div>
+                    <div class="meta-item">
+                        <span>👤</span>
+                        <span>Global Dating Chat Team</span>
+                    </div>
+                    <div class="meta-item">
+                        <span>⏱️</span>
+                        <span>5 min read</span>
+                    </div>
+                </div>
+            </div>
+            
+            <img src="{{IMAGE_URL}}" alt="{{TITLE}}" class="featured-image">
+            
+            <div class="article-content">
+                <div class="content">
+                    {{CONTENT}}
+                </div>
+                
+                <div class="tags">
+                    <div class="tags-title">Tags</div>
+                    {{TAGS}}
+                </div>
+                
+                <div class="share-buttons">
+                    <a href="https://twitter.com/intent/tweet?text={{TITLE}}&url=https://globaldatingchat.online/news/{{SLUG}}" class="share-btn twitter" target="_blank">
+                        🐦 Share on Twitter
+                    </a>
+                    <a href="https://www.facebook.com/sharer/sharer.php?u=https://globaldatingchat.online/news/{{SLUG}}" class="share-btn facebook" target="_blank">
+                        📘 Share on Facebook
+                    </a>
+                    <a href="https://www.linkedin.com/sharing/share-offsite/?url=https://globaldatingchat.online/news/{{SLUG}}" class="share-btn linkedin" target="_blank">
+                        💼 Share on LinkedIn
+                    </a>
+                </div>
+            </div>
+        </article>
+        
+        <div class="related">
+            <h3 class="related-title">Related Articles</h3>
+            <div class="related-articles">
+                <a href="/news/article-1" class="related-article">
+                    <img src="https://source.unsplash.com/80x80/?technology" alt="Article" class="related-image">
+                    <div class="related-content">
+                        <div class="related-article-title">Latest Technology Trends in 2025</div>
+                        <div class="related-meta">2 hours ago • Technology</div>
+                    </div>
+                </a>
+                <a href="/news/article-2" class="related-article">
+                    <img src="https://source.unsplash.com/80x80/?business" alt="Article" class="related-image">
+                    <div class="related-content">
+                        <div class="related-article-title">Business Growth Strategies</div>
+                        <div class="related-meta">4 hours ago • Business</div>
+                    </div>
+                </a>
+                <a href="/news/article-3" class="related-article">
+                    <img src="https://source.unsplash.com/80x80/?health" alt="Article" class="related-image">
+                    <div class="related-content">
+                        <div class="related-article-title">Health and Wellness Tips</div>
+                        <div class="related-meta">6 hours ago • Health</div>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

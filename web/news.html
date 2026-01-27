@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dating News - Global Dating Chat</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #f8f9fa;
+        }
+        .header {
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 16px 24px;
+        }
+        .header h1 {
+            font-size: 20px;
+            color: #5f6368;
+            font-weight: 400;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+        .news-card {
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+        }
+        .news-title {
+            font-size: 20px;
+            color: #202124;
+            margin-bottom: 12px;
+            font-weight: 500;
+        }
+        .news-meta {
+            color: #5f6368;
+            font-size: 14px;
+            margin-bottom: 16px;
+        }
+        .news-content {
+            color: #202124;
+            line-height: 1.6;
+            margin-bottom: 16px;
+        }
+        .news-image {
+            width: 100%;
+            max-height: 200px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #5f6368;
+        }
+        @media (max-width: 768px) {
+            .container {
+                padding: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Latest News</h1>
+    </div>
+
+    <div class="container">
+        <div id="newsContainer">
+            <div class="loading">Loading latest news...</div>
+        </div>
+    </div>
+
+    <script>
+        // X API integration for all trending news
+        async function fetchDatingNews() {
+            const newsContainer = document.getElementById('newsContainer');
+            
+            try {
+                // Replace with your X API endpoint for trending topics
+                const response = await fetch('/api/news');
+                const news = await response.json();
+                
+                newsContainer.innerHTML = '';
+                
+                news.forEach(article => {
+                    const newsCard = document.createElement('div');
+                    newsCard.className = 'news-card';
+                    newsCard.innerHTML = `
+                        <h2 class="news-title">${article.title}</h2>
+                        <div class="news-meta">
+                            ${new Date(article.date).toLocaleDateString()} • ${article.source}
+                        </div>
+                        ${article.image ? `<img src="${article.image}" class="news-image" alt="${article.title}">` : ''}
+                        <div class="news-content">${article.content}</div>
+                    `;
+                    newsContainer.appendChild(newsCard);
+                });
+                
+            } catch (error) {
+                newsContainer.innerHTML = `
+                    <div class="news-card">
+                        <h2 class="news-title">Breaking News & Trending Topics</h2>
+                        <div class="news-content">
+                            <p>Stay updated with the latest news from around the world!</p>
+                            <p>We're aggregating trending topics and breaking news for you.</p>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        
+        // Load news on page load
+        document.addEventListener('DOMContentLoaded', fetchDatingNews);
+    </script>
+</body>
+</html>
