@@ -82,8 +82,8 @@
   </div>
   
   <script>
-    // Only redirect to news page if coming from root path
-    if (window.location.pathname === '/') {
+    // Only redirect to news page if coming from root path and not from navigation
+    if (window.location.pathname === '/' && !document.referrer.includes(window.location.origin)) {
       window.location.href = '/news.html';
     }
   </script>
@@ -91,7 +91,7 @@
   <div class="flutter-container">
     <script>
       window.addEventListener('load', function(ev) {
-        _flutter.loader.loadEntrypoint({
+        _flutter.loader.load({
           onEntrypointLoaded: function(engineInitializer) {
             engineInitializer.initializeEngine().then(function(appRunner) {
               appRunner.runApp();
