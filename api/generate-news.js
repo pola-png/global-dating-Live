@@ -23,8 +23,10 @@ export default async function handler(req, res) {
 async function fetchRSSNews() {
     const sources = [
         { url: 'https://feeds.bbci.co.uk/news/rss.xml', category: 'World', name: 'BBC' },
-        { url: 'https://rss.cnn.com/rss/edition.rss', category: 'Breaking', name: 'CNN' },
-        { url: 'https://techcrunch.com/feed/', category: 'Technology', name: 'TechCrunch' }
+        { url: 'https://rss.reuters.com/news/world.rss', category: 'Breaking', name: 'Reuters' },
+        { url: 'https://feeds.npr.org/1001/rss.xml', category: 'Technology', name: 'NPR' },
+        { url: 'https://feeds.washingtonpost.com/rss/world', category: 'Politics', name: 'Washington Post' },
+        { url: 'https://rss.cnn.com/rss/cnn_topstories.rss', category: 'Breaking', name: 'CNN Top Stories' }
     ];
     
     const articles = [];
