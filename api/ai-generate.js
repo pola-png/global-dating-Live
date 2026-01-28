@@ -1,5 +1,5 @@
 // AI News Generation Cron - Processes unprocessed headlines with Gemini AI
-import { Client, Databases } from 'node-appwrite';
+import { Client, Databases, Query } from 'node-appwrite';
 
 const client = new Client()
   .setEndpoint('https://nyc.cloud.appwrite.io/v1')
@@ -40,8 +40,8 @@ async function getUnprocessedHeadlines() {
             DATABASE_ID,
             HEADLINES_COLLECTION,
             [
-                { method: 'equal', attribute: 'processed', value: false },
-                { method: 'limit', value: 5 }
+                Query.equal('processed', false),
+                Query.limit(5)
             ]
         );
         return result.documents;
