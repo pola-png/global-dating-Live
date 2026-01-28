@@ -22,11 +22,11 @@ export default async function handler(req, res) {
 
 async function fetchRSSNews() {
     const sources = [
+        { url: 'https://www.reuters.com/arc/outboundfeeds/news-rss/', category: 'World', name: 'Reuters' },
+        { url: 'https://rss.cnn.com/rss/cnn_topstories.rss', category: 'Breaking', name: 'CNN' },
         { url: 'https://feeds.bbci.co.uk/news/rss.xml', category: 'World', name: 'BBC' },
-        { url: 'https://rss.reuters.com/news/world.rss', category: 'Breaking', name: 'Reuters' },
-        { url: 'https://feeds.npr.org/1001/rss.xml', category: 'Technology', name: 'NPR' },
-        { url: 'https://feeds.washingtonpost.com/rss/world', category: 'Politics', name: 'Washington Post' },
-        { url: 'https://rss.cnn.com/rss/cnn_topstories.rss', category: 'Breaking', name: 'CNN Top Stories' }
+        { url: 'https://www.aljazeera.com/xml/rss/all.xml', category: 'International', name: 'Al Jazeera' },
+        { url: 'https://www.reuters.com/arc/outboundfeeds/world-news-rss/', category: 'World', name: 'Reuters World' }
     ];
     
     const articles = [];
