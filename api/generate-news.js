@@ -1,166 +1,93 @@
-// News Generation with Google Trends SEO Integration
-import { Client, Databases } from 'node-appwrite';
-
-const client = new Client()
-  .setEndpoint(process.env.APPWRITE_ENDPOINT)
-  .setProject(process.env.APPWRITE_PROJECT_ID)
-  .setKey(process.env.APPWRITE_API_KEY);
-
-const databases = new Databases(client);
-const DATABASE_ID = 'news_db';
-const COLLECTION_ID = 'news_articles';
-
+// Real-time RSS News Generation
 export default async function handler(req, res) {
     try {
-        // Get trending keywords from Google Trends
-        const trendingKeywords = await getTrendingKeywords();
-        
-        // Get RSS headlines
-        const rssHeadlines = await getRSSHeadlines();
-        
-        // Generate AI articles with SEO keywords
-        const articles = await generateAIArticles(rssHeadlines, trendingKeywords);
-        
-        // Save to database
-        await saveArticlesToDatabase(articles);
+        const { articles, errors } = await fetchRSSNews();
         
         res.status(200).json({ 
             success: true,
             generated: articles.length,
-            keywords: trendingKeywords.slice(0, 10)
+            keywords: ['breaking', 'news', 'latest', 'update'],
+            articles: articles,
+            errors: errors
         });
         
     } catch (error) {
-        res.status(500).json({ error: 'Failed to generate news' });
+        console.error('Generate news error:', error);
+        res.status(500).json({ 
+            error: 'Failed to generate news',
+            details: error.message 
+        });
     }
 }
 
-async function getTrendingKeywords() {
-    try {
-        const response = await fetch('https://trends.google.com/trends/trendingsearches/daily/rss?geo=US');
-        const xmlText = await response.text();
-        
-        const keywords = [];
-        const matches = xmlText.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/g);
-        
-        if (matches) {
-            matches.forEach(match => {
-                const keyword = match.replace(/<title><!\[CDATA\[/, '').replace(/\]\]><\/title>/, '');
-                if (keyword && keyword !== 'Daily Search Trends') {
-                    keywords.push(keyword.trim());
-                }
-            });
-        }
-        
-        return keywords;
-    } catch (error) {
-        return ['AI technology', 'breaking news', 'trending now'];
-    }
-}
-
-async function getRSSHeadlines() {
+async function fetchRSSNews() {
     const sources = [
-        'https://feeds.bbci.co.uk/news/rss.xml',
-        'https://rss.cnn.com/rss/edition.rss',
-        'https://techcrunch.com/feed/'
+        { url: 'https://feeds.bbci.co.uk/news/rss.xml', category: 'World', name: 'BBC' },
+        { url: 'https://rss.cnn.com/rss/edition.rss', category: 'Breaking', name: 'CNN' },
+        { url: 'https://techcrunch.com/feed/', category: 'Technology', name: 'TechCrunch' }
     ];
     
-    const headlines = [];
+    const articles = [];
+    const errors = [];
     
     for (const source of sources) {
         try {
-            const response = await fetch(source);
-            const xmlText = await response.text();
-            const items = xmlText.match(/<item[^>]*>[\s\S]*?<\/item>/g);
+            const response = await fetch(source.url, {
+                headers: { 'User-Agent': 'Mozilla/5.0' },
+                timeout: 10000
+            });
             
-            if (items) {
-                items.slice(0, 5).forEach(item => {
-                    const title = item.match(/<title[^>]*>([\s\S]*?)<\/title>/)?.[1]?.replace(/<[^>]*>/g, '') || '';
-                    if (title) headlines.push(title.trim());
-                });
+            if (!response.ok) {
+                errors.push(`${source.name}: HTTP ${response.status}`);
+                continue;
             }
+            
+            const xmlText = await response.text();
+            const items = xmlText.match(/<item[^>]*>[\s\S]*?<\/item>/g) || [];
+            
+            if (items.length === 0) {
+                errors.push(`${source.name}: No articles found`);
+                continue;
+            }
+            
+            items.slice(0, 3).forEach((item, index) => {
+                const title = extractText(item, 'title');
+                const description = extractText(item, 'description');
+                const pubDate = extractText(item, 'pubDate');
+                
+                if (title) {
+                    articles.push({
+                        id: `${source.category.toLowerCase()}_${Date.now()}_${index}`,
+                        title: cleanText(title),
+                        content: cleanText(description) || `Breaking news: ${title}`,
+                        category: source.category,
+                        publishedDate: pubDate ? new Date(pubDate).toISOString() : new Date().toISOString(),
+                        imageUrl: `https://images.unsplash.com/800x400/?${source.category.toLowerCase()}`,
+                        slug: generateSlug(title)
+                    });
+                }
+            });
         } catch (error) {
+            errors.push(`${source.name}: ${error.message}`);
             continue;
         }
     }
     
-    return headlines;
+    return { articles, errors };
 }
 
-async function generateAIArticles(headlines, keywords) {
-    const articles = [];
-    
-    for (let i = 0; i < Math.min(headlines.length, 10); i++) {
-        const headline = headlines[i];
-        const seoKeywords = keywords.slice(0, 5).join(', ');
-        
-        const prompt = `Write a news article based on this headline: "${headline}". 
-        Include these trending SEO keywords naturally: ${seoKeywords}.
-        Make it 300-500 words, engaging, and SEO-optimized.
-        Return JSON with: title, content, category, seoKeywords`;
-        
-        try {
-            const aiResponse = await callGeminiAPI(prompt);
-            const article = JSON.parse(aiResponse);
-            
-            articles.push({
-                title: article.title || headline,
-                content: article.content || '',
-                category: article.category || 'News',
-                seoKeywords: article.seoKeywords || seoKeywords,
-                publishedDate: new Date().toISOString(),
-                trafficScore: Math.floor(Math.random() * 100),
-                imageUrl: `https://images.unsplash.com/800x400/?${article.category}`,
-                slug: generateSlug(article.title || headline)
-            });
-        } catch (error) {
-            // Fallback if AI fails
-            articles.push({
-                title: headline,
-                content: `Breaking news about ${headline}. Stay tuned for more updates.`,
-                category: 'News',
-                seoKeywords: seoKeywords,
-                publishedDate: new Date().toISOString(),
-                trafficScore: 50,
-                imageUrl: 'https://images.unsplash.com/800x400/?news',
-                slug: generateSlug(headline)
-            });
-        }
-    }
-    
-    return articles;
+function extractText(xml, tag) {
+    const match = xml.match(new RegExp(`<${tag}[^>]*>([\s\S]*?)<\/${tag}>`, 'i'));
+    return match ? match[1].replace(/<[^>]*>/g, '').trim() : '';
 }
 
-async function callGeminiAPI(prompt) {
-    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=' + process.env.GEMINI_API_KEY, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: {
-                temperature: 0.7,
-                maxOutputTokens: 1000
-            }
-        })
-    });
-    
-    const data = await response.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
-}
-
-async function saveArticlesToDatabase(articles) {
-    for (const article of articles) {
-        try {
-            await databases.createDocument(
-                DATABASE_ID,
-                COLLECTION_ID,
-                'unique()',
-                article
-            );
-        } catch (error) {
-            console.error('Error saving article:', error);
-        }
-    }
+function cleanText(text) {
+    return text
+        .replace(/<[^>]*>/g, '')
+        .replace(/&[^;]+;/g, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .substring(0, 500);
 }
 
 function generateSlug(title) {
