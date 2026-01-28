@@ -18,6 +18,7 @@ export default async function handler(req, res) {
       success: true,
       articlesGenerated: newsData.generated || 0,
       keywords: newsData.keywords || [],
+      errors: newsData.errors || [],
       timestamp: new Date().toISOString()
     });
 
