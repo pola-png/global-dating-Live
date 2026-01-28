@@ -1,5 +1,5 @@
 // Serve AI-generated news articles from Appwrite
-import { Client, Databases } from 'node-appwrite';
+import { Client, Databases, Query } from 'node-appwrite';
 
 const client = new Client()
   .setEndpoint('https://nyc.cloud.appwrite.io/v1')
@@ -16,9 +16,8 @@ export default async function handler(req, res) {
             DATABASE_ID,
             COLLECTION_ID,
             [
-                // Get latest 20 articles, sorted by date
-                { method: 'orderDesc', attribute: 'publishedDate' },
-                { method: 'limit', value: 20 }
+                Query.orderDesc('publishedDate'),
+                Query.limit(20)
             ]
         );
         
