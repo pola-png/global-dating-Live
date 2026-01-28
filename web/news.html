@@ -172,7 +172,7 @@
         .container {
             max-width: 1400px;
             margin: 0 auto;
-            padding: 60px 20px;
+            padding: 20px;
         }
         
         .section-header {
@@ -348,11 +348,16 @@
         }
         
         .filter-tabs {
+            position: sticky;
+            top: 60px;
+            background: var(--surface);
+            padding: 20px 0;
             display: flex;
             justify-content: center;
             gap: 10px;
-            margin-bottom: 40px;
             flex-wrap: wrap;
+            z-index: 999;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
         }
         
         .filter-tab {
@@ -477,40 +482,21 @@
         </div>
     </div>
     
-    <div class="hero-section">
-        <div class="hero-content">
-            <h1 class="hero-title">Latest News & Trends</h1>
-            <p class="hero-subtitle">Stay updated with the most trending topics and breaking news from around the world</p>
-            <div class="stats-bar">
-                <div class="stat-item">
-                    <span class="stat-number" id="article-count">200+</span>
-                    <span class="stat-label">Daily Articles</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-number">24/7</span>
-                    <span class="stat-label">Live Updates</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-number">50+</span>
-                    <span class="stat-label">News Sources</span>
-                </div>
-            </div>
-        </div>
+    <div class="filter-tabs">
+        <button class="filter-tab active" data-category="all">All News</button>
+        <button class="filter-tab" data-category="trending">🔥 Trending</button>
+        <button class="filter-tab" data-category="technology">💻 Tech</button>
+        <button class="filter-tab" data-category="entertainment">🎬 Entertainment</button>
+        <button class="filter-tab" data-category="sports">⚽ Sports</button>
+        <button class="filter-tab" data-category="business">💼 Business</button>
     </div>
+    
+
 
     <div class="container">
         <div class="section-header">
             <h2 class="section-title">Trending Now</h2>
             <p class="section-subtitle">Discover the most talked-about stories and emerging trends</p>
-        </div>
-        
-        <div class="filter-tabs">
-            <button class="filter-tab active" data-category="all">All News</button>
-            <button class="filter-tab" data-category="trending">🔥 Trending</button>
-            <button class="filter-tab" data-category="technology">💻 Tech</button>
-            <button class="filter-tab" data-category="entertainment">🎬 Entertainment</button>
-            <button class="filter-tab" data-category="sports">⚽ Sports</button>
-            <button class="filter-tab" data-category="business">💼 Business</button>
         </div>
         
         <div id="loading" class="loading">
