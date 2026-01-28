@@ -82,8 +82,8 @@
   </div>
   
   <script>
-    // Redirect to news page by default
-    if (window.location.pathname === '/' || window.location.pathname === '/index.html') {
+    // Only redirect to news page if coming from root path
+    if (window.location.pathname === '/') {
       window.location.href = '/news.html';
     }
   </script>
