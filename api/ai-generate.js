@@ -56,21 +56,21 @@ async function generateAIArticles(headlines) {
     
     for (const headline of headlines) {
         try {
-            const prompt = `Write a comprehensive news article based on this headline: "${headline.title}"\nDescription: ${headline.content}\nWrite a detailed, engaging article of 500-1000+ words. Include background context, analysis, and implications. Make it professional and informative. Return JSON with: {"title": "enhanced title", "content": "full detailed article", "summary": "brief summary"}`;
+            const prompt = `Write a comprehensive news article based on this headline: "${headline.title}"\nDescription: ${headline.description}\nOriginal source: ${headline.source}\nWrite a detailed, engaging article of 500-1000+ words. Include background context, analysis, and implications. Make it professional and informative. Return JSON with: {"title": "enhanced title", "content": "full detailed article", "summary": "brief summary"}`;
             
             const aiResponse = await callGeminiAPI(prompt);
             const aiContent = JSON.parse(aiResponse);
             
             aiArticles.push({
-                title: aiContent.title || headline.title,
-                content: aiContent.content || headline.content,
-                summary: aiContent.summary || headline.content.substring(0, 200),
-                category: headline.category,
-                publishedDate: headline.publishedDate,
-                imageUrl: `https://images.unsplash.com/800x400/?${headline.category.toLowerCase()}`,
-                slug: generateSlug(aiContent.title || headline.title),
-                source: 'AI Enhanced',
-                originalSource: headline.source
+                title: (aiContent.title || headline.title).substring(0, 255),
+                content: (aiContent.content || headline.description).substring(0, 1000),
+                url: headline.link.substring(0, 500),
+                source: headline.source.substring(0, 100),
+                category: (headline.source || 'general').substring(0, 50),
+                publishedDate: headline.pubDate,
+                trafficScore: Math.floor(Math.random() * 100),
+                imageUrl: `https://images.unsplash.com/800x400/?news`.substring(0, 500),
+                slug: generateSlug(aiContent.title || headline.title)
             });
         } catch (error) {
             console.error('AI generation failed for headline:', headline.title, error);

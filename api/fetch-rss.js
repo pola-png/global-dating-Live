@@ -65,16 +65,16 @@ async function fetchRSSNews() {
             items.slice(0, 3).forEach((item, index) => {
                 const title = extractText(item, 'title');
                 const description = extractText(item, 'description');
+                const link = extractText(item, 'link');
                 const pubDate = extractText(item, 'pubDate');
                 
-                if (title) {
+                if (title && link && description) {
                     articles.push({
-                        id: `${source.category.toLowerCase()}_${Date.now()}_${index}`,
-                        title: cleanText(title),
-                        content: cleanText(description) || `Breaking news: ${title}`,
-                        category: source.category,
-                        publishedDate: pubDate ? new Date(pubDate).toISOString() : new Date().toISOString(),
-                        source: source.name,
+                        title: cleanText(title).substring(0, 255),
+                        link: link,
+                        description: cleanText(description).substring(0, 102),
+                        pubDate: pubDate ? new Date(pubDate).toISOString() : new Date().toISOString(),
+                        source: source.name.substring(0, 128),
                         processed: false
                     });
                 }
