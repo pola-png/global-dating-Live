@@ -76,10 +76,17 @@
 </head>
 <body>
   <div class="web-nav">
-    <a href="/" id="homeTab" class="active">Home</a>
-    <a href="/news.html" id="newsTab">News</a>
+    <a href="/" id="homeTab">Home</a>
+    <a href="/news.html" id="newsTab" class="active">News</a>
     <a href="/download.html">Download App</a>
   </div>
+  
+  <script>
+    // Redirect to news page by default
+    if (window.location.pathname === '/' || window.location.pathname === '/index.html') {
+      window.location.href = '/news.html';
+    }
+  </script>
   
   <div class="flutter-container">
     <script>
