@@ -1,6 +1,6 @@
 {
   "installCommand": "git clone https://github.com/flutter/flutter.git -b stable --depth 1 && export PATH=\"$PATH:`pwd`/flutter/bin\" && flutter pub get",
-  "buildCommand": "export PATH=\"$PATH:`pwd`/flutter/bin\" && flutter build web --release --dart-define=APPWRITE_ENDPOINT=$APPWRITE_ENDPOINT --dart-define=APPWRITE_PROJECT_ID=$APPWRITE_PROJECT_ID --dart-define=API_BASE_URL=$API_BASE_URL && cp public/app.apk build/web/app.apk && if [ -d public/screenshots ]; then cp -r public/screenshots build/web/screenshots; fi",
+  "buildCommand": "chmod +x build.sh && ./build.sh",
   "outputDirectory": "build/web",
   "functions": {
     "api/*.js": {
