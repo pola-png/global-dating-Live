@@ -2,12 +2,12 @@
 import { Client, Databases } from 'node-appwrite';
 
 const client = new Client()
-  .setEndpoint(process.env.APPWRITE_ENDPOINT)
-  .setProject(process.env.APPWRITE_PROJECT_ID)
+  .setEndpoint('https://nyc.cloud.appwrite.io/v1')
+  .setProject('69384bc2002e7f635849')
   .setKey(process.env.APPWRITE_API_KEY);
 
 const databases = new Databases(client);
-const DATABASE_ID = 'news_db';
+const DATABASE_ID = '69384d3300376e805bf8';
 const COLLECTION_ID = 'news_articles';
 
 export default async function handler(req, res) {

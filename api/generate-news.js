@@ -2,12 +2,12 @@
 import { Client, Databases } from 'node-appwrite';
 
 const client = new Client()
-  .setEndpoint(process.env.APPWRITE_ENDPOINT)
-  .setProject(process.env.APPWRITE_PROJECT_ID)
+  .setEndpoint('https://nyc.cloud.appwrite.io/v1')
+  .setProject('69384bc2002e7f635849')
   .setKey(process.env.APPWRITE_API_KEY);
 
 const databases = new Databases(client);
-const DATABASE_ID = 'news_db';
+const DATABASE_ID = '69384d3300376e805bf8';
 const COLLECTION_ID = 'news_articles';
 
 export default async function handler(req, res) {
@@ -29,6 +29,21 @@ export default async function handler(req, res) {
             error: 'Failed to generate news',
             details: error.message 
         });
+    }
+}
+
+async function saveArticlesToDatabase(articles) {
+    for (const article of articles) {
+        try {
+            await databases.createDocument(
+                DATABASE_ID,
+                COLLECTION_ID,
+                'unique()',
+                article
+            );
+        } catch (error) {
+            console.error('Error saving article:', error);
+        }
     }
 }
 
@@ -64,6 +79,10 @@ Write a detailed, engaging article of 500-1000+ words. Include background contex
 }
 
 async function callGeminiAPI(prompt) {
+    if (!process.env.GEMINI_API_KEY) {
+        throw new Error('GEMINI_API_KEY not set');
+    }
+    
     const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=' + process.env.GEMINI_API_KEY, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -78,21 +97,6 @@ async function callGeminiAPI(prompt) {
     
     const data = await response.json();
     return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
-}
-
-async function saveArticlesToDatabase(articles) {
-    for (const article of articles) {
-        try {
-            await databases.createDocument(
-                DATABASE_ID,
-                COLLECTION_ID,
-                'unique()',
-                article
-            );
-        } catch (error) {
-            console.error('Error saving article:', error);
-        }
-    }
 }
 
 async function fetchRSSNews() {
@@ -153,12 +157,14 @@ async function fetchRSSNews() {
 }
 
 function extractText(xml, tag) {
-    // Handle CDATA sections
-    const cdataMatch = xml.match(new RegExp(`<${tag}[^>]*><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/${tag}>`, 'i'));
+    // Handle CDATA sections - escape brackets properly
+    const cdataPattern = `<${tag}[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/${tag}>`;
+    const cdataMatch = xml.match(new RegExp(cdataPattern, 'i'));
     if (cdataMatch) return cdataMatch[1].trim();
     
     // Handle regular tags
-    const match = xml.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'i'));
+    const regularPattern = `<${tag}[^>]*>([\s\S]*?)<\/${tag}>`;
+    const match = xml.match(new RegExp(regularPattern, 'i'));
     return match ? match[1].replace(/<[^>]*>/g, '').trim() : '';
 }
 
