@@ -113,4 +113,5 @@ upload-keystore.jks
 !android/build.gradle.kts
 !android/settings.gradle.kts
 !android/app/google-services.json
+!api/*.js
 !README.md
