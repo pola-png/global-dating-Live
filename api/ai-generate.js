@@ -48,7 +48,7 @@ async function getUnprocessedHeadlines() {
             HEADLINES_COLLECTION,
             [
                 Query.equal('processed', false),
-                Query.limit(5)
+                Query.limit(10)
             ]
         );
         return result.documents;

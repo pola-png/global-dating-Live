@@ -494,7 +494,7 @@
                     <div class="news-content">
                         <div class="news-category">${category}</div>
                         <h3 class="news-title">${article.title}</h3>
-                        <p class="news-summary">${article.description || 'Discover more about this trending topic and stay informed with the latest developments...'}</p>
+                        <p class="news-summary">${article.content || article.description || 'Discover more about this trending topic and stay informed with the latest developments...'}</p>
                         <div class="news-meta">
                             <div class="news-date">
                                 <span>🕒</span>
@@ -505,8 +505,8 @@
                     </div>
                 `;
                 
-                if (article.link) {
-                    card.onclick = () => window.open(article.link, '_blank');
+                if (article.url || article.link) {
+                    card.onclick = () => window.open(article.url || article.link, '_blank');
                 }
                 
                 container.appendChild(card);

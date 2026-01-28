@@ -93,12 +93,21 @@ function cleanText(text) {
 async function saveHeadlinesToDatabase(articles) {
     for (const article of articles) {
         try {
-            await databases.createDocument(
+            // Check if headline already exists
+            const existing = await databases.listDocuments(
                 DATABASE_ID,
                 COLLECTION_ID,
-                'unique()',
-                article
+                [Query.equal('link', article.link)]
             );
+            
+            if (existing.documents.length === 0) {
+                await databases.createDocument(
+                    DATABASE_ID,
+                    COLLECTION_ID,
+                    'unique()',
+                    article
+                );
+            }
         } catch (error) {
             console.error('Error saving headline:', error.message);
         }
