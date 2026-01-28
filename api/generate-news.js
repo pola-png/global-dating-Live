@@ -25,9 +25,7 @@ async function fetchRSSNews() {
         { url: 'https://www.aljazeera.com/xml/rss/all.xml', category: 'International', name: 'Al Jazeera' },
         { url: 'https://feeds.bbci.co.uk/news/rss.xml', category: 'World', name: 'BBC News' },
         { url: 'https://feeds.bbci.co.uk/news/world/rss.xml', category: 'World', name: 'BBC World' },
-        { url: 'https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx1YlY4U0FtVnVHZ0pWVXlnQVAB?hl=en-US&gl=US&ceid=US:en', category: 'Breaking', name: 'Google News' },
-        { url: 'https://rss.app/feeds/BZ3ulmxEghnmBWVb.xml', category: 'World', name: 'Reuters' },
-        { url: 'https://rss.app/feeds/6dbELi8edYGE7Fe5.xml', category: 'Breaking', name: 'CNN' }
+        { url: 'https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx1YlY4U0FtVnVHZ0pWVXlnQVAB?hl=en-US&gl=US&ceid=US:en', category: 'Breaking', name: 'Google News' }
     ];
     
     const articles = [];
