@@ -2,11 +2,6 @@
   "installCommand": "git clone https://github.com/flutter/flutter.git -b stable --depth 1 && export PATH=\"$PATH:`pwd`/flutter/bin\" && flutter pub get",
   "buildCommand": "chmod +x build.sh && ./build.sh",
   "outputDirectory": "build/web",
-  "functions": {
-    "api/*.js": {
-      "runtime": "nodejs20.x"
-    }
-  },
   "headers": [
     {
       "source": "/app.apk",
