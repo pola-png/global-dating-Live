@@ -40,15 +40,37 @@
             top: 0;
             left: 0;
             right: 0;
-            height: 70px;
-            background: var(--gradient);
-            backdrop-filter: blur(20px);
+            height: 60px;
+            background: linear-gradient(135deg, #9400D3 0%, #7B00B3 100%);
             display: flex;
             align-items: center;
-            justify-content: center;
-            gap: 40px;
+            justify-content: space-between;
+            padding: 0 40px;
             z-index: 1000;
-            box-shadow: 0 4px 20px var(--shadow);
+            box-shadow: 0 2px 8px rgba(148,0,211,0.3);
+            backdrop-filter: blur(10px);
+        }
+        
+        .nav-brand {
+            color: white;
+            font-size: 18px;
+            font-weight: 700;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .nav-brand img {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+        }
+        
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 30px;
         }
         
         .web-nav a {
@@ -56,35 +78,31 @@
             text-decoration: none;
             font-size: 16px;
             font-weight: 500;
-            padding: 12px 20px;
-            border-radius: 12px;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            padding: 8px 16px;
+            border-radius: 8px;
+            transition: all 0.2s;
             position: relative;
-            overflow: hidden;
-        }
-        
-        .web-nav a::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: rgba(255, 255, 255, 0.2);
-            transition: left 0.3s ease;
-        }
-        
-        .web-nav a:hover::before, .web-nav a.active::before {
-            left: 0;
         }
         
         .web-nav a:hover, .web-nav a.active {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(255, 255, 255, 0.2);
+            background: rgba(255,255,255,0.2);
+            transform: translateY(-1px);
+        }
+        
+        .web-nav a.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 20px;
+            height: 2px;
+            background: white;
+            border-radius: 1px;
         }
         
         .hero-section {
-            margin-top: 70px;
+            margin-top: 60px;
             background: var(--gradient);
             color: white;
             padding: 80px 0 60px;
@@ -383,6 +401,19 @@
                 display: none;
             }
             
+            .nav-brand {
+                font-size: 16px;
+            }
+            
+            .nav-links {
+                gap: 15px;
+            }
+            
+            .web-nav a {
+                padding: 6px 12px;
+                font-size: 14px;
+            }
+            
             .hero-section {
                 margin-top: 0;
                 padding: 60px 0 40px;
@@ -435,9 +466,15 @@
 </head>
 <body>
     <div class="web-nav">
-        <a href="/">Home</a>
-        <a href="/news.html" class="active">News</a>
-        <a href="/download.html">Download App</a>
+        <a href="/" class="nav-brand">
+            <img src="/icons/Icon-192.png" alt="Global Dating Chat">
+            Global Dating Chat
+        </a>
+        <div class="nav-links">
+            <a href="/">Home</a>
+            <a href="/news.html" class="active">News</a>
+            <a href="/download.html">Download App</a>
+        </div>
     </div>
     
     <div class="hero-section">
