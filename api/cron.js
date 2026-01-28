@@ -1,13 +1,16 @@
 // External Cron Job - runs every 2 hours
 export default async function handler(req, res) {
-  // Allow all requests for external cron services
-
   try {
-    // Trigger news generation
-    const newsResponse = await fetch(`${process.env.VERCEL_URL || 'https://globaldatingchat.online'}/api/generate-news`, {
+    // Test direct call to generate-news
+    const baseUrl = req.headers.host ? `https://${req.headers.host}` : 'https://globaldatingchat.online';
+    const newsResponse = await fetch(`${baseUrl}/api/generate-news`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
     });
+
+    if (!newsResponse.ok) {
+      throw new Error(`Generate-news failed: ${newsResponse.status}`);
+    }
 
     const newsData = await newsResponse.json();
     
@@ -19,7 +22,10 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
-    console.error('Cron job failed:', error);
-    res.status(500).json({ error: 'Cron job failed' });
+    console.error('Cron job failed:', error.message);
+    res.status(500).json({ 
+      error: 'Cron job failed',
+      details: error.message
+    });
   }
 }
