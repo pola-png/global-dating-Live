@@ -37,9 +37,9 @@ async function generateAIArticles(rssArticles) {
     
     for (const article of rssArticles.slice(0, 5)) {
         try {
-            const prompt = `Write a complete news article based on this headline: "${article.title}"
+            const prompt = `Write a comprehensive news article based on this headline: "${article.title}"
 Description: ${article.content}
-Make it 300-500 words, engaging, and professional. Return JSON with: {"title": "enhanced title", "content": "full article", "summary": "brief summary"}`;
+Write a detailed, engaging article of 500-1000+ words. Include background context, analysis, and implications. Make it professional and informative. Return JSON with: {"title": "enhanced title", "content": "full detailed article", "summary": "brief summary"}`;
             
             const aiResponse = await callGeminiAPI(prompt);
             const aiContent = JSON.parse(aiResponse);
@@ -71,7 +71,7 @@ async function callGeminiAPI(prompt) {
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: {
                 temperature: 0.7,
-                maxOutputTokens: 1000
+                maxOutputTokens: 2000
             }
         })
     });
