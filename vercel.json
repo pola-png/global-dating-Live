@@ -1,8 +1,37 @@
 {
-  "crons": [
+  "installCommand": "git clone https://github.com/flutter/flutter.git -b stable --depth 1 && export PATH=\"$PATH:`pwd`/flutter/bin\" && flutter pub get",
+  "buildCommand": "export PATH=\"$PATH:`pwd`/flutter/bin\" && flutter build web --release --dart-define=APPWRITE_ENDPOINT=$APPWRITE_ENDPOINT --dart-define=APPWRITE_PROJECT_ID=$APPWRITE_PROJECT_ID --dart-define=API_BASE_URL=$API_BASE_URL && cp public/app.apk build/web/app.apk && if [ -d public/screenshots ]; then cp -r public/screenshots build/web/screenshots; fi",
+  "outputDirectory": "build/web",
+  "functions": {
+    "api/*.js": {
+      "runtime": "nodejs18.x"
+    }
+  },
+  "headers": [
     {
-      "path": "/api/cron",
-      "schedule": "0 0 * * *"
+      "source": "/app.apk",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/vnd.android.package-archive"
+        },
+        {
+          "key": "Content-Disposition",
+          "value": "attachment; filename=\"Global.Dating.Chat.apk\""
+        },
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "*"
+        }
+      ]
     }
   ]
 }
