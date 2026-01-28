@@ -76,14 +76,16 @@
 </head>
 <body>
   <div class="web-nav">
-    <a href="/" id="homeTab">Home</a>
-    <a href="/news.html" id="newsTab" class="active">News</a>
+    <a href="/" id="homeTab" class="active">Home</a>
+    <a href="/news.html" id="newsTab">News</a>
     <a href="/download.html">Download App</a>
   </div>
   
   <script>
-    // Only redirect to news page if coming from root path and not from navigation
-    if (window.location.pathname === '/' && !document.referrer.includes(window.location.origin)) {
+    // Only redirect to news page for first-time visitors from external sources
+    if (window.location.pathname === '/' && 
+        (!sessionStorage.getItem('visited') && !document.referrer.includes(window.location.origin))) {
+      sessionStorage.setItem('visited', 'true');
       window.location.href = '/news.html';
     }
   </script>
