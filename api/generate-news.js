@@ -22,11 +22,12 @@ export default async function handler(req, res) {
 
 async function fetchRSSNews() {
     const sources = [
-        { url: 'https://www.reuters.com/arc/outboundfeeds/news-rss/', category: 'World', name: 'Reuters' },
-        { url: 'https://rss.cnn.com/rss/cnn_topstories.rss', category: 'Breaking', name: 'CNN' },
-        { url: 'https://feeds.bbci.co.uk/news/rss.xml', category: 'World', name: 'BBC' },
         { url: 'https://www.aljazeera.com/xml/rss/all.xml', category: 'International', name: 'Al Jazeera' },
-        { url: 'https://www.reuters.com/arc/outboundfeeds/world-news-rss/', category: 'World', name: 'Reuters World' }
+        { url: 'https://feeds.bbci.co.uk/news/rss.xml', category: 'World', name: 'BBC News' },
+        { url: 'https://feeds.bbci.co.uk/news/world/rss.xml', category: 'World', name: 'BBC World' },
+        { url: 'https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx1YlY4U0FtVnVHZ0pWVXlnQVAB?hl=en-US&gl=US&ceid=US:en', category: 'Breaking', name: 'Google News' },
+        { url: 'https://rss.app/feeds/BZ3ulmxEghnmBWVb.xml', category: 'World', name: 'Reuters' },
+        { url: 'https://rss.app/feeds/6dbELi8edYGE7Fe5.xml', category: 'Breaking', name: 'CNN' }
     ];
     
     const articles = [];
