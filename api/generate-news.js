@@ -1,12 +1,25 @@
-// Real-time RSS News Generation
+// Real-time RSS News Generation with AI Enhancement
+import { Client, Databases } from 'node-appwrite';
+
+const client = new Client()
+  .setEndpoint(process.env.APPWRITE_ENDPOINT)
+  .setProject(process.env.APPWRITE_PROJECT_ID)
+  .setKey(process.env.APPWRITE_API_KEY);
+
+const databases = new Databases(client);
+const DATABASE_ID = 'news_db';
+const COLLECTION_ID = 'news_articles';
+
 export default async function handler(req, res) {
     try {
         const { articles, errors } = await fetchRSSNews();
+        const aiArticles = await generateAIArticles(articles);
+        await saveArticlesToDatabase(aiArticles);
         
         res.status(200).json({ 
             success: true,
-            generated: articles.length,
-            articles: articles,
+            generated: aiArticles.length,
+            articles: aiArticles,
             errors: errors
         });
         
@@ -16,6 +29,69 @@ export default async function handler(req, res) {
             error: 'Failed to generate news',
             details: error.message 
         });
+    }
+}
+
+async function generateAIArticles(rssArticles) {
+    const aiArticles = [];
+    
+    for (const article of rssArticles.slice(0, 5)) {
+        try {
+            const prompt = `Write a complete news article based on this headline: "${article.title}"
+Description: ${article.content}
+Make it 300-500 words, engaging, and professional. Return JSON with: {"title": "enhanced title", "content": "full article", "summary": "brief summary"}`;
+            
+            const aiResponse = await callGeminiAPI(prompt);
+            const aiContent = JSON.parse(aiResponse);
+            
+            aiArticles.push({
+                title: aiContent.title || article.title,
+                content: aiContent.content || article.content,
+                summary: aiContent.summary || article.content.substring(0, 200),
+                category: article.category,
+                publishedDate: article.publishedDate,
+                imageUrl: article.imageUrl,
+                slug: generateSlug(aiContent.title || article.title),
+                source: 'AI Enhanced'
+            });
+        } catch (error) {
+            // Fallback to original article
+            aiArticles.push(article);
+        }
+    }
+    
+    return aiArticles;
+}
+
+async function callGeminiAPI(prompt) {
+    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=' + process.env.GEMINI_API_KEY, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+                temperature: 0.7,
+                maxOutputTokens: 1000
+            }
+        })
+    });
+    
+    const data = await response.json();
+    return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+}
+
+async function saveArticlesToDatabase(articles) {
+    for (const article of articles) {
+        try {
+            await databases.createDocument(
+                DATABASE_ID,
+                COLLECTION_ID,
+                'unique()',
+                article
+            );
+        } catch (error) {
+            console.error('Error saving article:', error);
+        }
     }
 }
 
@@ -78,11 +154,11 @@ async function fetchRSSNews() {
 
 function extractText(xml, tag) {
     // Handle CDATA sections
-    const cdataMatch = xml.match(new RegExp(`<${tag}[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/${tag}>`, 'i'));
+    const cdataMatch = xml.match(new RegExp(`<${tag}[^>]*><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/${tag}>`, 'i'));
     if (cdataMatch) return cdataMatch[1].trim();
     
     // Handle regular tags
-    const match = xml.match(new RegExp(`<${tag}[^>]*>([\s\S]*?)<\/${tag}>`, 'i'));
+    const match = xml.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'i'));
     return match ? match[1].replace(/<[^>]*>/g, '').trim() : '';
 }
 

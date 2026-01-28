@@ -1,6 +1,6 @@
+// Serve AI-generated news articles from Appwrite
 import { Client, Databases } from 'node-appwrite';
 
-// Appwrite setup
 const client = new Client()
   .setEndpoint(process.env.APPWRITE_ENDPOINT)
   .setProject(process.env.APPWRITE_PROJECT_ID)
@@ -12,37 +12,26 @@ const COLLECTION_ID = 'news_articles';
 
 export default async function handler(req, res) {
     try {
-        // Fetch published articles from Appwrite database
-        const response = await databases.listDocuments(
+        const articles = await databases.listDocuments(
             DATABASE_ID,
             COLLECTION_ID,
             [
-                'publishedDate:desc',
-                'limit(50)'
+                // Get latest 20 articles, sorted by date
+                { method: 'orderDesc', attribute: 'publishedDate' },
+                { method: 'limit', value: 20 }
             ]
         );
         
-        const articles = response.documents.map(doc => ({
-            title: doc.title,
-            description: doc.content,
-            link: `/news/${doc.slug}`,
-            publishedAt: doc.publishedDate,
-            category: doc.category,
-            source: 'Global Dating Chat News',
-            image: doc.imageUrl,
-            trafficScore: doc.trafficScore || 50
-        }));
-        
-        res.status(200).json({ 
-            articles: articles,
-            count: articles.length
+        res.status(200).json({
+            success: true,
+            articles: articles.documents
         });
         
     } catch (error) {
+        console.error('Error fetching articles:', error);
         res.status(500).json({ 
-            error: 'Failed to fetch news',
-            articles: [],
-            count: 0
+            error: 'Failed to fetch articles',
+            articles: []
         });
     }
 }
