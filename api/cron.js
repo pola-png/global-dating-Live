@@ -1,22 +1,24 @@
 // Vercel Cron Job - runs every hour
 export default async function handler(req, res) {
-  // Only allow cron requests
-  if (req.headers['user-agent'] !== 'vercel-cron/1.0') {
+  // Allow both Vercel cron and external cron services
+  const validUserAgents = ['vercel-cron/1.0', 'cron-job.org'];
+  if (!validUserAgents.includes(req.headers['user-agent'])) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
   try {
     // Trigger news generation
-    const newsResponse = await fetch(`${process.env.VERCEL_URL || 'https://globaldatingchat.online'}/api/news`, {
-      method: 'GET',
-      headers: { 'User-Agent': 'NewsBot/1.0' }
+    const newsResponse = await fetch(`${process.env.VERCEL_URL || 'https://globaldatingchat.online'}/api/generate-news`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
     });
 
     const newsData = await newsResponse.json();
     
     res.status(200).json({
       success: true,
-      articlesGenerated: newsData.count || 0,
+      articlesGenerated: newsData.generated || 0,
+      keywords: newsData.keywords || [],
       timestamp: new Date().toISOString()
     });
 
