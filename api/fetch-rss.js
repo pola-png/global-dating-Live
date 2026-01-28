@@ -1,5 +1,6 @@
 // RSS Fetch Cron - Fetches raw headlines every hour
 import { Client, Databases } from 'node-appwrite';
+import Parser from 'rss-parser';
 
 const client = new Client()
   .setEndpoint('https://nyc.cloud.appwrite.io/v1')
@@ -9,6 +10,7 @@ const client = new Client()
 const databases = new Databases(client);
 const DATABASE_ID = '69384d3300376e805bf8';
 const COLLECTION_ID = 'rss_headlines';
+const parser = new Parser();
 
 export default async function handler(req, res) {
     try {
@@ -49,28 +51,21 @@ async function fetchRSSNews() {
     
     for (const source of sources) {
         try {
-            const response = await fetch(source.url, {
-                headers: { 'User-Agent': 'Mozilla/5.0 (compatible; NewsBot/1.0)' }
-            });
+            const feed = await parser.parseURL(source.url);
             
-            if (!response.ok) continue;
-            
-            const xmlText = await response.text();
-            const items = xmlText.match(/<item[^>]*>[\s\S]*?<\/item>/g) || [];
-            
-            items.slice(0, 3).forEach((item) => {
+            feed.items.slice(0, 3).forEach((item) => {
                 try {
-                    const title = extractText(item, 'title');
-                    const description = extractText(item, 'description');
-                    const link = extractText(item, 'link');
-                    const pubDate = extractText(item, 'pubDate');
+                    const title = cleanText(item.title || '');
+                    const description = cleanText(item.contentSnippet || item.content || '');
+                    const link = item.link || '';
+                    const pubDate = item.pubDate || item.isoDate || new Date().toISOString();
                     
                     if (title && link && description) {
                         articles.push({
-                            title: cleanText(title).substring(0, 255),
+                            title: title.substring(0, 255),
                             link: link.substring(0, 500),
-                            description: cleanText(description).substring(0, 102),
-                            pubDate: pubDate ? new Date(pubDate).toISOString() : new Date().toISOString(),
+                            description: description.substring(0, 102),
+                            pubDate: new Date(pubDate).toISOString(),
                             source: source.name,
                             processed: false
                         });
@@ -87,38 +82,10 @@ async function fetchRSSNews() {
     return articles;
 }
 
-function extractText(xml, tag) {
-    try {
-        // Handle CDATA sections
-        const cdataPattern = `<${tag}[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/${tag}>`;
-        const cdataMatch = xml.match(new RegExp(cdataPattern, 'i'));
-        if (cdataMatch) return decodeHtml(cdataMatch[1].trim());
-        
-        // Handle regular tags
-        const regularPattern = `<${tag}[^>]*>([\s\S]*?)<\/${tag}>`;
-        const match = xml.match(new RegExp(regularPattern, 'i'));
-        return match ? decodeHtml(match[1].replace(/<[^>]*>/g, '').trim()) : '';
-    } catch (error) {
-        return '';
-    }
-}
-
-function decodeHtml(text) {
-    return text
-        .replace(/&amp;/g, '&')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&quot;/g, '"')
-        .replace(/&#39;/g, "'")
-        .replace(/&#8211;/g, '–')
-        .replace(/&#8217;/g, ''');
-}
-
 function cleanText(text) {
     if (!text) return '';
     return text
         .replace(/<[^>]*>/g, '')
-        .replace(/&[^;]+;/g, '')
         .replace(/\s+/g, ' ')
         .trim();
 }
