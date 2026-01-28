@@ -1,10 +1,6 @@
-// Vercel Cron Job - runs every hour
+// External Cron Job - runs every 2 hours
 export default async function handler(req, res) {
-  // Allow both Vercel cron and external cron services
-  const validUserAgents = ['vercel-cron/1.0', 'cron-job.org'];
-  if (!validUserAgents.includes(req.headers['user-agent'])) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
+  // Allow all requests for external cron services
 
   try {
     // Trigger news generation
