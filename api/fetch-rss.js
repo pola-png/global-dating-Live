@@ -16,7 +16,7 @@ export default async function handler(req, res) {
             return res.status(500).json({ error: 'APPWRITE_API_KEY not configured' });
         }
 
-        const { articles, errors } = await fetchRSSNews();
+        const articles = await fetchRSSNews();
         
         if (articles.length > 0) {
             await saveHeadlinesToDatabase(articles);
@@ -25,7 +25,6 @@ export default async function handler(req, res) {
         res.status(200).json({
             success: true,
             headlinesFetched: articles.length,
-            errors: errors,
             timestamp: new Date().toISOString()
         });
         
@@ -33,71 +32,52 @@ export default async function handler(req, res) {
         console.error('RSS fetch failed:', error);
         res.status(500).json({ 
             error: 'RSS fetch failed',
-            details: error.message,
-            stack: error.stack
+            details: error.message
         });
     }
 }
 
 async function fetchRSSNews() {
-    const sources = [
-        { url: 'https://www.aljazeera.com/xml/rss/all.xml', name: 'Al Jazeera' },
-        { url: 'https://feeds.bbci.co.uk/news/rss.xml', name: 'BBC News' },
-        { url: 'https://feeds.bbci.co.uk/news/world/rss.xml', name: 'BBC World' },
-        { url: 'https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx1YlY4U0FtVnVHZ0pWVXlnQVAB?hl=en-US&gl=US&ceid=US:en', name: 'Google News' }
-    ];
-    
     const articles = [];
-    const errors = [];
     
-    for (const source of sources) {
-        try {
-            const response = await fetch(source.url, {
-                headers: { 'User-Agent': 'Mozilla/5.0 (compatible; NewsBot/1.0)' },
-                signal: AbortSignal.timeout(10000)
-            });
-            
-            if (!response.ok) {
-                errors.push(`${source.name}: HTTP ${response.status}`);
-                continue;
-            }
-            
-            const xmlText = await response.text();
-            const items = xmlText.match(/<item[^>]*>[\s\S]*?<\/item>/g) || [];
-            
-            if (items.length === 0) {
-                errors.push(`${source.name}: No articles found`);
-                continue;
-            }
-            
-            items.slice(0, 3).forEach((item, index) => {
-                try {
-                    const title = extractText(item, 'title');
-                    const description = extractText(item, 'description');
-                    const link = extractText(item, 'link');
-                    const pubDate = extractText(item, 'pubDate');
-                    
-                    if (title && link && description) {
-                        articles.push({
-                            title: cleanText(title).substring(0, 255),
-                            link: link.substring(0, 500),
-                            description: cleanText(description).substring(0, 102),
-                            pubDate: pubDate ? new Date(pubDate).toISOString() : new Date().toISOString(),
-                            source: source.name.substring(0, 128),
-                            processed: false
-                        });
-                    }
-                } catch (itemError) {
-                    console.error(`Error processing item from ${source.name}:`, itemError);
-                }
-            });
-        } catch (error) {
-            errors.push(`${source.name}: ${error.message}`);
-            continue;
+    try {
+        const response = await fetch('https://feeds.bbci.co.uk/news/rss.xml', {
+            headers: { 'User-Agent': 'Mozilla/5.0 (compatible; NewsBot/1.0)' }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
         }
+        
+        const xmlText = await response.text();
+        const items = xmlText.match(/<item[^>]*>[\s\S]*?<\/item>/g) || [];
+        
+        items.slice(0, 3).forEach((item) => {
+            try {
+                const title = extractText(item, 'title');
+                const description = extractText(item, 'description');
+                const link = extractText(item, 'link');
+                const pubDate = extractText(item, 'pubDate');
+                
+                if (title && link && description) {
+                    articles.push({
+                        title: cleanText(title).substring(0, 255),
+                        link: link.substring(0, 500),
+                        description: cleanText(description).substring(0, 102),
+                        pubDate: pubDate ? new Date(pubDate).toISOString() : new Date().toISOString(),
+                        source: 'BBC News',
+                        processed: false
+                    });
+                }
+            } catch (itemError) {
+                console.error('Error processing item:', itemError);
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching RSS:', error);
     }
     
-    return { articles, errors };
+    return articles;
 }
 
 function extractText(xml, tag) {
