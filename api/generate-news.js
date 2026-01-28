@@ -6,7 +6,6 @@ export default async function handler(req, res) {
         res.status(200).json({ 
             success: true,
             generated: articles.length,
-            keywords: ['breaking', 'news', 'latest', 'update'],
             articles: articles,
             errors: errors
         });
@@ -78,6 +77,11 @@ async function fetchRSSNews() {
 }
 
 function extractText(xml, tag) {
+    // Handle CDATA sections
+    const cdataMatch = xml.match(new RegExp(`<${tag}[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/${tag}>`, 'i'));
+    if (cdataMatch) return cdataMatch[1].trim();
+    
+    // Handle regular tags
     const match = xml.match(new RegExp(`<${tag}[^>]*>([\s\S]*?)<\/${tag}>`, 'i'));
     return match ? match[1].replace(/<[^>]*>/g, '').trim() : '';
 }

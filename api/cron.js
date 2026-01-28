@@ -17,7 +17,7 @@ export default async function handler(req, res) {
     res.status(200).json({
       success: true,
       articlesGenerated: newsData.generated || 0,
-      keywords: newsData.keywords || [],
+      articles: newsData.articles || [],
       errors: newsData.errors || [],
       timestamp: new Date().toISOString()
     });
