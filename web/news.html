@@ -16,11 +16,11 @@
             color: #333;
         }
         .header {
-            background: #01875f;
+            background: #9400D3;
             color: white;
             padding: 1rem 0;
             text-align: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 8px rgba(148,0,211,0.3);
         }
         .nav {
             display: flex;
@@ -36,7 +36,8 @@
             transition: background 0.2s;
         }
         .nav a:hover {
-            background: rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.2);
+            transform: translateY(-1px);
         }
         .container {
             max-width: 1200px;
@@ -94,7 +95,7 @@
             color: #888;
         }
         .news-source {
-            background: #01875f;
+            background: #9400D3;
             color: white;
             padding: 4px 8px;
             border-radius: 4px;
@@ -162,9 +163,7 @@
                 const publishedDate = new Date(article.publishedAt || Date.now()).toLocaleDateString();
                 
                 card.innerHTML = `
-                    <img src="${article.image || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=800&h=400&fit=crop'}" 
-                         alt="${article.title}" class="news-image" 
-                         onerror="this.src='https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=800&h=400&fit=crop'">
+                    ${article.image ? `<img src="${article.image}" alt="${article.title}" class="news-image">` : ''}
                     <div class="news-content">
                         <h2 class="news-title">${article.title}</h2>
                         <p class="news-summary">${article.description || 'Read more about this trending topic...'}</p>

@@ -6,11 +6,42 @@
     <title>Download Global Dating Chat</title>
     <style>
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             margin: 0;
-            padding: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
+            padding: 0;
+            background-color: #FFFBFE;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        .web-nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: #9400D3;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 30px;
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(148,0,211,0.3);
+        }
+        .web-nav a {
+            color: white;
+            text-decoration: none;
+            font-size: 16px;
+            font-weight: 500;
+            padding: 8px 16px;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+        .web-nav a:hover, .web-nav a.active {
+            background: rgba(255,255,255,0.2);
+            transform: translateY(-1px);
+        }
+        .content {
+            margin-top: 60px;
+            padding: 40px 20px;
+            min-height: calc(100vh - 60px);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -21,12 +52,12 @@
             padding: 40px;
             max-width: 500px;
             text-align: center;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            box-shadow: 0 20px 40px rgba(148,0,211,0.1);
         }
         .app-icon {
             width: 100px;
             height: 100px;
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: #9400D3;
             border-radius: 20px;
             margin: 0 auto 20px;
             display: flex;
@@ -44,7 +75,7 @@
             margin-bottom: 30px;
         }
         .download-btn {
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: #9400D3;
             color: white;
             padding: 15px 30px;
             border: none;
@@ -55,10 +86,11 @@
             text-decoration: none;
             display: inline-block;
             margin: 10px;
-            transition: transform 0.2s;
+            transition: all 0.2s;
         }
         .download-btn:hover {
             transform: translateY(-2px);
+            background: #7B00B3;
         }
         .version {
             color: #999;
@@ -74,8 +106,12 @@
             color: #856404;
         }
         @media (max-width: 768px) {
-            body {
-                padding: 10px;
+            .web-nav {
+                display: none;
+            }
+            .content {
+                margin-top: 0;
+                padding: 20px 10px;
             }
             .container {
                 padding: 30px 20px;
@@ -88,29 +124,37 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="app-icon"><img src="/icons/Icon-512.png" style="width: 100%; height: 100%; border-radius: 20px;"></div>
-        <h1>Global Dating Chat</h1>
-        <p class="subtitle">Connect with people worldwide</p>
-        
-        <div class="warning">
-            <strong>⚠️ Enable Unknown Sources</strong><br>
-            Go to Settings > Security > Unknown Sources and enable it to install this app.
-        </div>
-        
-        <a href="/app.apk" class="download-btn">
-            📱 Download APK
-        </a>
-        
-        <p class="version">Version 1.0.0 • Latest Release</p>
-        
-        <div style="margin-top: 30px; font-size: 14px; color: #666;">
-            <p><strong>Features:</strong></p>
-            <p>• Global chat and dating</p>
-            <p>• Live streaming</p>
-            <p>• Video calls</p>
-            <p>• Photo sharing</p>
-            <p>• Coin rewards system</p>
+    <div class="web-nav">
+        <a href="/">Home</a>
+        <a href="/news.html">News</a>
+        <a href="/download.html" class="active">Download App</a>
+    </div>
+    
+    <div class="content">
+        <div class="container">
+            <div class="app-icon"><img src="/icons/Icon-512.png" style="width: 100%; height: 100%; border-radius: 20px;"></div>
+            <h1>Global Dating Chat</h1>
+            <p class="subtitle">Connect with people worldwide</p>
+            
+            <div class="warning">
+                <strong>⚠️ Enable Unknown Sources</strong><br>
+                Go to Settings > Security > Unknown Sources and enable it to install this app.
+            </div>
+            
+            <a href="/app.apk" class="download-btn">
+                📱 Download APK
+            </a>
+            
+            <p class="version">Version 1.0.0 • Latest Release</p>
+            
+            <div style="margin-top: 30px; font-size: 14px; color: #666;">
+                <p><strong>Features:</strong></p>
+                <p>• Global chat and dating</p>
+                <p>• Live streaming</p>
+                <p>• Video calls</p>
+                <p>• Photo sharing</p>
+                <p>• Coin rewards system</p>
+            </div>
         </div>
     </div>
 </body>
