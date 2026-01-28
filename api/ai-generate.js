@@ -13,6 +13,13 @@ const NEWS_COLLECTION = 'news_articles';
 
 export default async function handler(req, res) {
     try {
+        if (!process.env.APPWRITE_API_KEY) {
+            return res.status(500).json({ error: 'APPWRITE_API_KEY not configured' });
+        }
+        if (!process.env.GEMINI_API_KEY) {
+            return res.status(500).json({ error: 'GEMINI_API_KEY not configured' });
+        }
+
         const unprocessedHeadlines = await getUnprocessedHeadlines();
         const aiArticles = await generateAIArticles(unprocessedHeadlines);
         await saveArticlesToDatabase(aiArticles);
@@ -56,24 +63,25 @@ async function generateAIArticles(headlines) {
     
     for (const headline of headlines) {
         try {
-            const prompt = `Write a comprehensive news article based on this headline: "${headline.title}"\nDescription: ${headline.description}\nOriginal source: ${headline.source}\nWrite a detailed, engaging article of 500-1000+ words. Include background context, analysis, and implications. Make it professional and informative. Return JSON with: {"title": "enhanced title", "content": "full detailed article", "summary": "brief summary"}`;
+            const prompt = `Write a news article about: "${headline.title}"\n\nDescription: ${headline.description}\n\nWrite a 500-word professional news article. Return only plain text, no JSON.`;
             
             const aiResponse = await callGeminiAPI(prompt);
-            const aiContent = JSON.parse(aiResponse);
             
-            aiArticles.push({
-                title: (aiContent.title || headline.title).substring(0, 255),
-                content: (aiContent.content || headline.description).substring(0, 1000),
-                url: headline.link.substring(0, 500),
-                source: headline.source.substring(0, 100),
-                category: (headline.source || 'general').substring(0, 50),
-                publishedDate: headline.pubDate,
-                trafficScore: Math.floor(Math.random() * 100),
-                imageUrl: `https://images.unsplash.com/800x400/?news`.substring(0, 500),
-                slug: generateSlug(aiContent.title || headline.title)
-            });
+            if (aiResponse && aiResponse.length > 100) {
+                aiArticles.push({
+                    title: headline.title.substring(0, 255),
+                    content: aiResponse.substring(0, 1000),
+                    url: headline.link.substring(0, 500),
+                    source: headline.source.substring(0, 100),
+                    category: headline.source.substring(0, 50),
+                    publishedDate: headline.pubDate,
+                    trafficScore: Math.floor(Math.random() * 100),
+                    imageUrl: `https://images.unsplash.com/800x400/?news`,
+                    slug: generateSlug(headline.title)
+                });
+            }
         } catch (error) {
-            console.error('AI generation failed for headline:', headline.title, error);
+            console.error('AI generation failed for headline:', headline.title, error.message);
         }
     }
     
@@ -92,10 +100,14 @@ async function callGeminiAPI(prompt) {
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: {
                 temperature: 0.7,
-                maxOutputTokens: 2000
+                maxOutputTokens: 1000
             }
         })
     });
+    
+    if (!response.ok) {
+        throw new Error(`Gemini API error: ${response.status}`);
+    }
     
     const data = await response.json();
     return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
