@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dating News - Global Dating Chat</title>
+    <title>News - Global Dating Chat</title>
     <style>
         * {
             margin: 0;
@@ -11,118 +11,181 @@
             box-sizing: border-box;
         }
         body {
-            font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: #f8f9fa;
+            color: #333;
         }
         .header {
-            background: white;
+            background: #01875f;
+            color: white;
+            padding: 1rem 0;
+            text-align: center;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            padding: 16px 24px;
         }
-        .header h1 {
-            font-size: 20px;
-            color: #5f6368;
-            font-weight: 400;
+        .nav {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 10px;
+        }
+        .nav a {
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+        .nav a:hover {
+            background: rgba(255,255,255,0.1);
         }
         .container {
             max-width: 1200px;
-            margin: 0 auto;
-            padding: 24px;
-        }
-        .news-card {
-            background: white;
-            border-radius: 8px;
-            padding: 24px;
-            margin-bottom: 24px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
-        }
-        .news-title {
-            font-size: 20px;
-            color: #202124;
-            margin-bottom: 12px;
-            font-weight: 500;
-        }
-        .news-meta {
-            color: #5f6368;
-            font-size: 14px;
-            margin-bottom: 16px;
-        }
-        .news-content {
-            color: #202124;
-            line-height: 1.6;
-            margin-bottom: 16px;
-        }
-        .news-image {
-            width: 100%;
-            max-height: 200px;
-            object-fit: cover;
-            border-radius: 8px;
-            margin-bottom: 16px;
+            margin: 2rem auto;
+            padding: 0 1rem;
         }
         .loading {
             text-align: center;
-            padding: 40px;
-            color: #5f6368;
+            padding: 2rem;
+            font-size: 18px;
+            color: #666;
+        }
+        .news-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+        .news-card {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .news-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+        .news-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            background: #e9ecef;
+        }
+        .news-content {
+            padding: 1.5rem;
+        }
+        .news-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            line-height: 1.4;
+        }
+        .news-summary {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 1rem;
+        }
+        .news-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.875rem;
+            color: #888;
+        }
+        .news-source {
+            background: #01875f;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+        }
+        .error {
+            text-align: center;
+            padding: 2rem;
+            color: #dc3545;
         }
         @media (max-width: 768px) {
-            .container {
-                padding: 16px;
+            .nav {
+                flex-wrap: wrap;
+                gap: 15px;
+            }
+            .news-grid {
+                grid-template-columns: 1fr;
             }
         }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>Latest News</h1>
-    </div>
-
-    <div class="container">
-        <div id="newsContainer">
-            <div class="loading">Loading latest news...</div>
+        <h1>Global Dating Chat News</h1>
+        <div class="nav">
+            <a href="/">Home</a>
+            <a href="/news">News</a>
+            <a href="/download.html">Download App</a>
         </div>
     </div>
 
+    <div class="container">
+        <div id="loading" class="loading">Loading latest news...</div>
+        <div id="error" class="error" style="display: none;">Failed to load news. Please try again later.</div>
+        <div id="news-container" class="news-grid"></div>
+    </div>
+
     <script>
-        // X API integration for all trending news
-        async function fetchDatingNews() {
-            const newsContainer = document.getElementById('newsContainer');
-            
+        async function loadNews() {
             try {
-                // Replace with your X API endpoint for trending topics
                 const response = await fetch('/api/news');
-                const news = await response.json();
+                const data = await response.json();
                 
-                newsContainer.innerHTML = '';
+                document.getElementById('loading').style.display = 'none';
                 
-                news.forEach(article => {
-                    const newsCard = document.createElement('div');
-                    newsCard.className = 'news-card';
-                    newsCard.innerHTML = `
-                        <h2 class="news-title">${article.title}</h2>
-                        <div class="news-meta">
-                            ${new Date(article.date).toLocaleDateString()} • ${article.source}
-                        </div>
-                        ${article.image ? `<img src="${article.image}" class="news-image" alt="${article.title}">` : ''}
-                        <div class="news-content">${article.content}</div>
-                    `;
-                    newsContainer.appendChild(newsCard);
-                });
-                
+                if (data.articles && data.articles.length > 0) {
+                    displayNews(data.articles);
+                } else {
+                    document.getElementById('error').style.display = 'block';
+                    document.getElementById('error').textContent = 'No news articles available.';
+                }
             } catch (error) {
-                newsContainer.innerHTML = `
-                    <div class="news-card">
-                        <h2 class="news-title">Breaking News & Trending Topics</h2>
-                        <div class="news-content">
-                            <p>Stay updated with the latest news from around the world!</p>
-                            <p>We're aggregating trending topics and breaking news for you.</p>
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').style.display = 'block';
+            }
+        }
+
+        function displayNews(articles) {
+            const container = document.getElementById('news-container');
+            
+            articles.forEach(article => {
+                const card = document.createElement('div');
+                card.className = 'news-card';
+                
+                const publishedDate = new Date(article.publishedAt || Date.now()).toLocaleDateString();
+                
+                card.innerHTML = `
+                    <img src="${article.image || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=800&h=400&fit=crop'}" 
+                         alt="${article.title}" class="news-image" 
+                         onerror="this.src='https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=800&h=400&fit=crop'">
+                    <div class="news-content">
+                        <h2 class="news-title">${article.title}</h2>
+                        <p class="news-summary">${article.description || 'Read more about this trending topic...'}</p>
+                        <div class="news-meta">
+                            <span>${publishedDate}</span>
+                            <span class="news-source">${article.category || 'News'}</span>
                         </div>
                     </div>
                 `;
-            }
+                
+                if (article.link) {
+                    card.style.cursor = 'pointer';
+                    card.onclick = () => window.open(article.link, '_blank');
+                }
+                
+                container.appendChild(card);
+            });
         }
-        
-        // Load news on page load
-        document.addEventListener('DOMContentLoaded', fetchDatingNews);
+
+        // Load news when page loads
+        document.addEventListener('DOMContentLoaded', loadNews);
     </script>
 </body>
 </html>

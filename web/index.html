@@ -17,22 +17,60 @@
       padding: 0;
       background-color: #FFFBFE;
     }
+    .web-nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 60px;
+      background: #01875f;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 30px;
+      z-index: 1000;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .web-nav a {
+      color: white;
+      text-decoration: none;
+      font-size: 16px;
+      font-weight: 500;
+      padding: 8px 16px;
+      border-radius: 4px;
+      transition: background 0.2s;
+    }
+    .web-nav a:hover {
+      background: rgba(255,255,255,0.1);
+    }
+    .flutter-container {
+      margin-top: 60px;
+    }
+    @media (max-width: 768px) {
+      .web-nav {
+        display: none;
+      }
+      .flutter-container {
+        margin-top: 0;
+      }
+    }
   </style>
   
   <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport">
 </head>
 <body>
-  <script>
-    window.addEventListener('load', function(ev) {
-      _flutter.loader.loadEntrypoint({
-        onEntrypointLoaded: function(engineInitializer) {
-          engineInitializer.initializeEngine().then(function(appRunner) {
-            appRunner.runApp();
-          });
-        }
-      });
-    });
-  </script>
-  <script src="flutter.js" defer=""></script>
+  <div class="web-nav">
+    <a href="/">Home</a>
+    <a href="/news">News</a>
+    <a href="/download.html">Download App</a>
+  </div>
+  
+  <div class="flutter-container">
+    <script>
+      // Redirect all web users to home page
+      window.location.href = '/home.html';
+    </script>
+    <script src="flutter.js" defer=""></script>
+  </div>
 
 </body></html>

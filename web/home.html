@@ -1,208 +1,307 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Global Dating Chat - Find Love & Relationships Worldwide | Free Dating App</title>
-  <meta name="description" content="Meet singles worldwide on Global Dating Chat. Free dating app with video calls, group chats, and matchmaking. Find real relationships, partners, and love globally. Join now!">
-  <meta name="keywords" content="global dating app, worldwide dating, international dating, find love online, dating chat, video dating, matchmaking app, free dating">
-  <meta name="robots" content="index,follow,max-snippet:-1,max-image-preview:large,max-video-preview:-1">
-  <link rel="canonical" href="https://www.globaldatingchat.online/">
-  <meta property="og:type" content="website">
-  <meta property="og:title" content="Global Dating Chat - Find Love & Relationships Worldwide">
-  <meta property="og:description" content="Connect with singles worldwide. Free dating app with video calls, group chats, and real matchmaking. Download now and find your perfect match!">
-  <meta property="og:url" content="https://www.globaldatingchat.online/">
-  <meta property="og:image" content="https://www.globaldatingchat.online/assets/og-cover.png">
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Global Dating Chat - Find Love Worldwide">
-  <meta name="twitter:description" content="Free dating app connecting singles globally. Video calls, group chats, real relationships.">
-  <meta name="twitter:image" content="https://www.globaldatingchat.online/assets/og-cover.png">
-  <style>
-    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; padding: 0; line-height: 1.6; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #333; }
-    .hero { text-align: center; padding: 60px 20px; color: white; }
-    .hero h1 { font-size: 3rem; margin-bottom: 20px; font-weight: 700; }
-    .hero p { font-size: 1.2rem; margin-bottom: 30px; max-width: 600px; margin-left: auto; margin-right: auto; }
-    .cta-button { display: inline-block; background: #ff6b6b; color: white; padding: 15px 30px; border-radius: 50px; text-decoration: none; font-weight: 600; font-size: 1.1rem; transition: transform 0.3s; }
-    .cta-button:hover { transform: translateY(-2px); }
-    .features { background: white; padding: 80px 20px; }
-    .container { max-width: 1200px; margin: 0 auto; }
-    .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 40px; margin-top: 50px; }
-    .feature { text-align: center; padding: 30px; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
-    .feature h3 { color: #667eea; margin-bottom: 15px; }
-    .stats { background: #f8f9fa; padding: 60px 20px; text-align: center; }
-    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 30px; margin-top: 40px; }
-    .stat { padding: 20px; }
-    .stat-number { font-size: 2.5rem; font-weight: 700; color: #667eea; }
-    .footer { background: #333; color: white; padding: 40px 20px; text-align: center; }
-    .footer a { color: #667eea; text-decoration: none; }
-    @media (max-width: 768px) {
-      .hero h1 { font-size: 2rem; }
-      .hero p { font-size: 1rem; }
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Dating Chat - Connect Worldwide</title>
+    <meta name="description" content="Connect with people worldwide through Global Dating Chat. Latest news, trending topics, and global community.">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8f9fa;
+            color: #333;
+        }
+        .header {
+            background: #01875f;
+            color: white;
+            padding: 1rem 0;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .nav {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 10px;
+        }
+        .nav a {
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+        .nav a:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        .hero {
+            background: linear-gradient(135deg, #01875f, #02a06b);
+            color: white;
+            padding: 4rem 1rem;
+            text-align: center;
+        }
+        .hero h1 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        .hero p {
+            font-size: 1.25rem;
+            margin-bottom: 2rem;
+            opacity: 0.9;
+        }
+        .cta-button {
+            background: white;
+            color: #01875f;
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-block;
+            transition: transform 0.2s;
+        }
+        .cta-button:hover {
+            transform: translateY(-2px);
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1rem;
+        }
+        .section {
+            padding: 3rem 0;
+        }
+        .section-title {
+            font-size: 2rem;
+            text-align: center;
+            margin-bottom: 2rem;
+            color: #333;
+        }
+        .news-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+        .news-card {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+        .news-card:hover {
+            transform: translateY(-4px);
+        }
+        .news-image {
+            width: 100%;
+            height: 180px;
+            object-fit: cover;
+        }
+        .news-content {
+            padding: 1.5rem;
+        }
+        .news-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            line-height: 1.4;
+        }
+        .news-summary {
+            color: #666;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #666;
+        }
+        .age-gate {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        }
+        .age-gate-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            text-align: center;
+            max-width: 400px;
+        }
+        .age-gate h2 {
+            margin-bottom: 1rem;
+            color: #333;
+        }
+        .age-gate p {
+            margin-bottom: 2rem;
+            color: #666;
+        }
+        .age-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+        }
+        .age-btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .age-btn.yes {
+            background: #01875f;
+            color: white;
+        }
+        .age-btn.no {
+            background: #dc3545;
+            color: white;
+        }
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2rem;
+            }
+            .hero p {
+                font-size: 1rem;
+            }
+            .nav {
+                flex-wrap: wrap;
+                gap: 15px;
+            }
+        }
+    </style>
 </head>
 <body>
-  <div id="loading" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; justify-content: center; align-items: center; z-index: 9999;">
-    <div style="text-align: center; color: white;">
-      <div style="width: 50px; height: 50px; border: 4px solid rgba(255,255,255,0.3); border-top: 4px solid white; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px;"></div>
-      <p style="font-size: 18px; margin: 0;">Loading Global Dating Chat...</p>
+    <div id="ageGate" class="age-gate" style="display: none;">
+        <div class="age-gate-content">
+            <h2>Age Verification</h2>
+            <p>You must be 18 or older to access this dating platform.</p>
+            <div class="age-buttons">
+                <button class="age-btn yes" onclick="acceptAge()">I'm 18+</button>
+                <button class="age-btn no" onclick="rejectAge()">Under 18</button>
+            </div>
+        </div>
     </div>
-  </div>
-  <style>
-    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-  </style>
-  <script>
-    window.addEventListener('load', function() {
-      setTimeout(function() {
-        document.getElementById('loading').style.display = 'none';
-      }, 500);
-    });
-  </script>
-  <section class="hero">
-    <div class="container">
-      <h1>Find Love Worldwide</h1>
-      <p>Connect with singles from every corner of the globe. Real relationships, meaningful conversations, and genuine connections await you on Global Dating Chat.</p>
-      <a href="#" class="cta-button" onclick="window.location.href='/'">Start Dating Now - It's Free!</a>
-    </div>
-  </section>
 
-  <section class="features">
-    <div class="container">
-      <h2 style="text-align: center; font-size: 2.5rem; margin-bottom: 20px;">Why Choose Global Dating Chat?</h2>
-      <p style="text-align: center; font-size: 1.1rem; color: #666; max-width: 600px; margin: 0 auto;">The only dating app that truly connects you with people worldwide through advanced matching and real-time features.</p>
-      
-      <div class="features-grid">
-        <div class="feature">
-          <h3>🌍 Global Connections</h3>
-          <p>Meet singles from 190+ countries. Break geographical barriers and find love anywhere in the world.</p>
+    <div class="header">
+        <h1>Global Dating Chat</h1>
+        <div class="nav">
+            <a href="/">Home</a>
+            <a href="#news">News</a>
+            <a href="/download.html">Download App</a>
         </div>
-        <div class="feature">
-          <h3>📹 Video Dating</h3>
-          <p>See who you're talking to with built-in video calls. Build real connections before meeting in person.</p>
-        </div>
-        <div class="feature">
-          <h3>💬 Group Chats</h3>
-          <p>Join country-specific groups and community discussions. Make friends and find romance naturally.</p>
-        </div>
-        <div class="feature">
-          <h3>🎯 Smart Matching</h3>
-          <p>Our advanced algorithm connects you with compatible partners based on interests, values, and goals.</p>
-        </div>
-        <div class="feature">
-          <h3>🔒 Safe & Secure</h3>
-          <p>Verified profiles, reporting tools, and privacy controls keep your dating experience safe and enjoyable.</p>
-        </div>
-        <div class="feature">
-          <h3>💝 Real Relationships</h3>
-          <p>Designed for people seeking genuine connections, long-term relationships, and meaningful partnerships.</p>
-        </div>
-      </div>
     </div>
-  </section>
 
-  <section class="stats">
-    <div class="container">
-      <h2 style="font-size: 2.5rem; margin-bottom: 20px;">Join Millions Finding Love</h2>
-      <div class="stats-grid">
-        <div class="stat">
-          <div class="stat-number">2M+</div>
-          <p>Active Singles</p>
+    <div class="hero">
+        <div class="container">
+            <h1>Connect Worldwide</h1>
+            <p>Join millions in global conversations, trending news, and meaningful connections</p>
+            <a href="/download.html" class="cta-button">Download App</a>
         </div>
-        <div class="stat">
-          <div class="stat-number">190+</div>
-          <p>Countries</p>
-        </div>
-        <div class="stat">
-          <div class="stat-number">50K+</div>
-          <p>Success Stories</p>
-        </div>
-        <div class="stat">
-          <div class="stat-number">24/7</div>
-          <p>Global Chat</p>
-        </div>
-      </div>
     </div>
-  </section>
 
-  <section style="background: #f8f9fa; padding: 80px 20px;">
-    <div class="container">
-      <h2 style="text-align: center; font-size: 2.5rem; margin-bottom: 50px;">Dating Tips & Relationship Guides</h2>
-      <div class="features-grid">
-        <div class="feature">
-          <h3>💕 Relationship Bio Tips</h3>
-          <p>Write a bio that attracts serious partners and real relationships.</p>
-          <a href="/relationship-bio.html" style="color: #667eea; text-decoration: none; font-weight: 600;">Read Guide →</a>
+    <div class="section" id="news">
+        <div class="container">
+            <h2 class="section-title">Latest News & Trends</h2>
+            <div id="loading" class="loading">Loading latest news...</div>
+            <div id="news-container" class="news-grid"></div>
         </div>
-        <div class="feature">
-          <h3>💬 First Message Ideas</h3>
-          <p>30+ conversation starters that actually get replies and build connections.</p>
-          <a href="/first-message-ideas.html" style="color: #667eea; text-decoration: none; font-weight: 600;">Get Ideas →</a>
-        </div>
-        <div class="feature">
-          <h3>🎯 Get More Matches</h3>
-          <p>Proven strategies to improve your profile and attract better partners.</p>
-          <a href="/get-more-matches.html" style="color: #667eea; text-decoration: none; font-weight: 600;">Learn How →</a>
-        </div>
-        <div class="feature">
-          <h3>💖 Find Real Relationships</h3>
-          <p>Step-by-step guide to finding serious, long-term relationships online.</p>
-          <a href="/find-real-relationship.html" style="color: #667eea; text-decoration: none; font-weight: 600;">Start Now →</a>
-        </div>
-        <div class="feature">
-          <h3>✨ Find Perfect Partner</h3>
-          <p>How to identify and connect with someone truly compatible with you.</p>
-          <a href="/find-perfect-partner.html" style="color: #667eea; text-decoration: none; font-weight: 600;">Discover →</a>
-        </div>
-        <div class="feature">
-          <h3>❤️ Find True Love</h3>
-          <p>Build deep, meaningful connections that lead to lasting love.</p>
-          <a href="/find-true-love.html" style="color: #667eea; text-decoration: none; font-weight: 600;">Find Love →</a>
-        </div>
-        <div class="feature">
-          <h3>⚡ Fast Matchmaking</h3>
-          <p>Get matched with compatible partners instantly using our premium matchmaking service.</p>
-          <a href="/#/fast-match" style="color: #667eea; text-decoration: none; font-weight: 600;">Try Matchmaking →</a>
-        </div>
-      </div>
     </div>
-  </section>
 
-  <section style="background: white; padding: 80px 20px; text-align: center;">
-    <div class="container">
-      <h2 style="font-size: 2.5rem; margin-bottom: 30px;">Ready to Find Your Perfect Match?</h2>
-      <p style="font-size: 1.2rem; color: #666; margin-bottom: 40px;">Join Global Dating Chat today and start your journey to finding real love and meaningful relationships.</p>
-      <a href="#" class="cta-button" onclick="window.location.href='/app'">Download Free App</a>
-    </div>
-  </section>
+    <script>
+        // Check if user came from news/post URL
+        function shouldShowAgeGate() {
+            const referrer = document.referrer;
+            const currentPath = window.location.pathname;
+            const hasNewsParam = window.location.search.includes('news') || window.location.hash.includes('news');
+            
+            // Don't show age gate if:
+            // 1. Coming from news/post URLs
+            // 2. Already accepted (stored in localStorage)
+            // 3. Current page is news-related
+            if (referrer.includes('/news') || 
+                referrer.includes('/post') || 
+                currentPath.includes('/news') ||
+                hasNewsParam ||
+                localStorage.getItem('ageVerified') === 'true') {
+                return false;
+            }
+            
+            return true;
+        }
 
-  <footer class="footer">
-    <div class="container">
-      <p>&copy; 2024 Global Dating Chat. Find love worldwide.</p>
-      <p>
-        <a href="/blog.html">Dating Blog</a> | 
-        <a href="/relationship-bio.html">Bio Tips</a> | 
-        <a href="/first-message-ideas.html">Message Ideas</a> | 
-        <a href="/find-real-relationship.html">Find Love</a> | 
-        <a href="/#/fast-match">Matchmaking</a>
-      </p>
-    </div>
-  </footer>
+        // Show age gate on page load if needed
+        window.addEventListener('load', function() {
+            if (shouldShowAgeGate()) {
+                document.getElementById('ageGate').style.display = 'flex';
+            }
+            loadNews();
+        });
 
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "WebApplication",
-    "name": "Global Dating Chat",
-    "description": "Free dating app connecting singles worldwide with video calls, group chats, and smart matching",
-    "url": "https://www.globaldatingchat.online",
-    "applicationCategory": "SocialNetworkingApplication",
-    "operatingSystem": "Android, iOS, Web",
-    "offers": {
-      "@type": "Offer",
-      "price": "0",
-      "priceCurrency": "USD"
-    }
-  }
-  </script>
+        function acceptAge() {
+            localStorage.setItem('ageVerified', 'true');
+            document.getElementById('ageGate').style.display = 'none';
+        }
+
+        function rejectAge() {
+            window.location.href = 'https://www.google.com';
+        }
+
+        async function loadNews() {
+            try {
+                const response = await fetch('/api/news');
+                const data = await response.json();
+                
+                document.getElementById('loading').style.display = 'none';
+                
+                if (data.articles && data.articles.length > 0) {
+                    displayNews(data.articles.slice(0, 6)); // Show only 6 articles
+                }
+            } catch (error) {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        function displayNews(articles) {
+            const container = document.getElementById('news-container');
+            
+            articles.forEach(article => {
+                const card = document.createElement('div');
+                card.className = 'news-card';
+                
+                card.innerHTML = `
+                    <img src="${article.image || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=800&h=400&fit=crop'}" 
+                         alt="${article.title}" class="news-image" 
+                         onerror="this.src='https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=800&h=400&fit=crop'">
+                    <div class="news-content">
+                        <h3 class="news-title">${article.title}</h3>
+                        <p class="news-summary">${(article.description || 'Read more about this trending topic...').substring(0, 120)}...</p>
+                    </div>
+                `;
+                
+                if (article.link) {
+                    card.style.cursor = 'pointer';
+                    card.onclick = () => window.open(article.link, '_blank');
+                }
+                
+                container.appendChild(card);
+            });
+        }
+    </script>
 </body>
 </html>
