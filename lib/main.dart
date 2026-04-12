@@ -10,6 +10,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'services/appwrite_service.dart';
 import 'services/push_registration_service.dart';
 import 'services/admob_service.dart';
+import 'services/google_play_billing_service.dart';
 import 'services/analytics_service.dart';
 import 'theme/app_theme.dart';
 
@@ -68,6 +69,7 @@ void main() async {
     if (!kIsWeb) {
       await AdMobService.initialize();
     }
+    await GooglePlayBillingService.instance.init();
     AnalyticsService.instance; // Initialize analytics
   } catch (e) {
     debugPrint('Firebase initialization error: $e');

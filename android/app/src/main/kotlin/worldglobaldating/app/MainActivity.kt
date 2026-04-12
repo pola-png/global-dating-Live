@@ -1,4 +1,4 @@
-package app3398936.vinebre
+package worldglobaldating.app
 
 import android.os.Bundle
 import androidx.core.view.WindowCompat

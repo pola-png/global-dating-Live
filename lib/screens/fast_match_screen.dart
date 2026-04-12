@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../components/responsive_page.dart';
 import '../services/admin_support_service.dart';
+import '../services/google_play_billing_service.dart';
 import '../services/appwrite_service.dart';
 
 class FastMatchScreen extends StatefulWidget {
@@ -14,7 +14,8 @@ class FastMatchScreen extends StatefulWidget {
   State<FastMatchScreen> createState() => _FastMatchScreenState();
 }
 
-class _FastMatchScreenState extends State<FastMatchScreen> with AutomaticKeepAliveClientMixin {
+class _FastMatchScreenState extends State<FastMatchScreen>
+    with AutomaticKeepAliveClientMixin {
   bool _processing = false;
 
   @override
@@ -34,7 +35,6 @@ class _FastMatchScreenState extends State<FastMatchScreen> with AutomaticKeepAli
   }
 
   Future<void> _startFastMatch() async {
-    // Check if user is authenticated
     final userId = await SessionStore.ensureUserId();
     if (userId == null) {
       if (mounted) {
@@ -42,34 +42,45 @@ class _FastMatchScreenState extends State<FastMatchScreen> with AutomaticKeepAli
       }
       return;
     }
-    
+
     setState(() => _processing = true);
     try {
-      // Open Flutterwave payment link
-      final uri = Uri.parse('https://flutterwave.com/pay/sadj3pd9qk1c');
-      final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
-      
-      if (launched) {
-        // Send message to admin support for approval
-        await AdminSupportService.sendMessage(
-          'Fast Match Payment Approval Required - User has initiated Fast Match payment. Please verify payment and approve the service.',
-        );
-        
+      final service = GooglePlayBillingService.instance;
+      if (!service.isAvailable) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Payment link opened! After payment, admin will verify and approve your Fast Match service within 24 hours.'),
-              backgroundColor: Colors.orange,
-              duration: Duration(seconds: 5),
+              content: Text('Google Play billing is only available on Android.'),
             ),
           );
         }
-      } else {
+        return;
+      }
+
+      if (service.productForId(GooglePlayBillingService.fastMatchProductId) == null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Could not open payment link'),
-              backgroundColor: Colors.red,
+              content: Text('Fast Match is not configured in Google Play Console yet.'),
+            ),
+          );
+        }
+        return;
+      }
+
+      final success = await service.buyFastMatch();
+
+      if (success) {
+        await AdminSupportService.sendMessage(
+          'Fast Match purchase completed through Google Play billing. Please contact the user to begin their session.',
+        );
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Purchase completed. Admin support will contact you inside the app.'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 5),
             ),
           );
         }
@@ -78,7 +89,7 @@ class _FastMatchScreenState extends State<FastMatchScreen> with AutomaticKeepAli
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error opening payment: $e'),
+          content: Text('Error starting purchase: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -122,7 +133,7 @@ class _FastMatchScreenState extends State<FastMatchScreen> with AutomaticKeepAli
                     Text(
                       'Get personal help from an admin to find high-quality matches faster.',
                       style: TextStyle(
-                        fontSize: 16, 
+                        fontSize: 16,
                         color: Theme.of(context).textTheme.bodyMedium?.color,
                       ),
                     ),
@@ -146,10 +157,10 @@ class _FastMatchScreenState extends State<FastMatchScreen> with AutomaticKeepAli
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Text('• 1:1 chat with an admin matchmaker.', style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color)),
-                    Text('• Profile review and optimization tips.', style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color)),
-                    Text('• Tailored suggestions of users that match your preferences.', style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color)),
-                    Text('• Priority responses and safety guidance.', style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color)),
+                    Text('- 1:1 chat with an admin matchmaker.', style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color)),
+                    Text('- Profile review and optimization tips.', style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color)),
+                    Text('- Tailored suggestions of users that match your preferences.', style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color)),
+                    Text('- Priority responses and safety guidance.', style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color)),
                   ],
                 ),
               ),
@@ -171,7 +182,7 @@ class _FastMatchScreenState extends State<FastMatchScreen> with AutomaticKeepAli
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '\$50 (one-time)',
+                      'Google Play one-time purchase',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -237,7 +248,7 @@ class _FastMatchScreenState extends State<FastMatchScreen> with AutomaticKeepAli
                         ),
                       )
                     : const Icon(LucideIcons.rocket),
-                label: Text(_processing ? 'Processing...' : 'Pay \$50 & Start'),
+                label: Text(_processing ? 'Processing...' : 'Buy and Start'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Theme.of(context).primaryColor,
                   foregroundColor: Colors.white,
@@ -246,10 +257,10 @@ class _FastMatchScreenState extends State<FastMatchScreen> with AutomaticKeepAli
             ),
             const SizedBox(height: 16),
             Text(
-              'Note: Payments are securely handled by Flutterwave. '
+              'Note: Purchases are securely handled by Google Play billing on Android. '
               'Admin support will contact you inside the app via a private chat.',
               style: TextStyle(
-                fontSize: 12, 
+                fontSize: 12,
                 color: Theme.of(context).textTheme.bodySmall?.color,
               ),
             ),

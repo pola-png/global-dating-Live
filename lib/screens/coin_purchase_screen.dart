@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import '../components/responsive_page.dart';
+import '../services/google_play_billing_service.dart';
 import '../services/wallet_service.dart';
 import '../services/admob_service.dart';
 import '../services/appwrite_service.dart';
@@ -16,6 +17,8 @@ class CoinPurchaseScreen extends StatefulWidget {
 class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
   final Set<int> _processingCoins = {};
   int _balance = 0;
+  bool _billingReady = false;
+  bool _billingAvailable = false;
 
 
 
@@ -23,11 +26,77 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
   void initState() {
     super.initState();
     _loadBalance();
+    _loadBilling();
   }
 
   Future<void> _loadBalance() async {
     final balance = await WalletService.getBalance();
     if (mounted) setState(() => _balance = balance);
+  }
+
+  Future<void> _loadBilling() async {
+    await GooglePlayBillingService.instance.init();
+    if (!mounted) return;
+    setState(() {
+      _billingReady = true;
+      _billingAvailable = GooglePlayBillingService.instance.isAvailable;
+    });
+  }
+
+  String? _productIdForCoins(int coins) {
+    switch (coins) {
+      case 10:
+        return GooglePlayBillingService.coins10ProductId;
+      case 30:
+        return GooglePlayBillingService.coins30ProductId;
+      case 60:
+        return GooglePlayBillingService.coins60ProductId;
+      default:
+        return null;
+    }
+  }
+
+  Future<void> _buyCoins(int coins) async {
+    final service = GooglePlayBillingService.instance;
+    if (!service.isAvailable) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Google Play billing is only available on Android.'),
+          ),
+        );
+      }
+      return;
+    }
+
+    final productId = _productIdForCoins(coins);
+    if (productId == null || service.productForId(productId) == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('That coin pack is not configured in Google Play Console yet.'),
+          ),
+        );
+      }
+      return;
+    }
+
+    setState(() => _processingCoins.add(coins));
+    final success = await service.buyCoins(coins);
+    if (success) {
+      await _loadBalance();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$coins coins purchased successfully.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    }
+    if (mounted) {
+      setState(() => _processingCoins.remove(coins));
+    }
   }
 
   Future<void> _watchAdsForCoins(int coins, int adsRequired) async {
@@ -232,6 +301,137 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
+
+                  if (_billingReady && _billingAvailable) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: colorScheme.outline.withValues(alpha: 0.2),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: colorScheme.primary,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(
+                                  LucideIcons.shoppingCart,
+                                  color: Colors.white,
+                                  size: 24,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Buy Coins on Google Play',
+                                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Payments are processed through Google Play billing.',
+                                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                        color: colorScheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          ...[
+                            {'coins': 10, 'id': GooglePlayBillingService.coins10ProductId},
+                            {'coins': 30, 'id': GooglePlayBillingService.coins30ProductId},
+                            {'coins': 60, 'id': GooglePlayBillingService.coins60ProductId},
+                          ].map((pkg) {
+                            final coinsValue = pkg['coins'] as int;
+                            final product = GooglePlayBillingService.instance.productForId(pkg['id'] as String);
+                            final isProcessing = _processingCoins.contains(coinsValue);
+
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 8),
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: colorScheme.outline.withValues(alpha: 0.15)),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(LucideIcons.coins, color: Colors.amber.shade600, size: 20),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text('$coinsValue coins'),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          product?.price ?? 'Available in Google Play Console',
+                                          style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  FilledButton(
+                                    onPressed: isProcessing ? null : () => _buyCoins(coinsValue),
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: colorScheme.primary,
+                                      minimumSize: const Size(84, 36),
+                                    ),
+                                    child: isProcessing
+                                        ? const SizedBox(
+                                            width: 16,
+                                            height: 16,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: Colors.white,
+                                            ),
+                                          )
+                                        : const Text('Buy'),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                  ] else if (_billingReady) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: colorScheme.outline.withValues(alpha: 0.2),
+                        ),
+                      ),
+                      child: Text(
+                        'Google Play billing is available on Android only. On this platform, you can still earn coins by watching ads.',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
                   
                   // Free coins section - Only way to get coins
                   Container(

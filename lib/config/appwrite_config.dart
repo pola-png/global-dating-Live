@@ -26,7 +26,6 @@ class AppwriteConfig {
   static const String reportsCollectionId = 'reports';
   static const String supportSessionsCollectionId = 'supportsessions';
   static const String videoCallsCollectionId = 'videocalls';
-  static const String paymentsCollectionId = 'payments';
 
   static const String mediaBucketId = '6938589a0029a096b861';
 }
