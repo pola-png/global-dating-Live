@@ -4,8 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../services/storage_service.dart';
 import '../components/responsive_page.dart';
-import '../config/appwrite_config.dart';
-import '../services/appwrite_service.dart';
+import '../services/supabase_service.dart';
 
 class PhotoManagerScreen extends StatefulWidget {
   const PhotoManagerScreen({super.key});
@@ -30,15 +29,15 @@ class _PhotoManagerScreenState extends State<PhotoManagerScreen> {
       final userId = await SessionStore.ensureUserId();
       if (userId == null) return;
 
-      final doc = await AppwriteService.databases.getDocument(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.profilesCollectionId,
-        documentId: userId,
-      );
+      final doc = await SupabaseService.client
+          .from('users')
+          .select('photos')
+          .eq('id', userId)
+          .maybeSingle();
 
       if (mounted) {
         setState(() {
-          _photos = List<String>.from(doc.data['photos'] ?? []);
+          _photos = List<String>.from(doc?['photos'] ?? []);
           _isLoading = false;
         });
       }
@@ -77,12 +76,10 @@ class _PhotoManagerScreenState extends State<PhotoManagerScreen> {
       if (photoId != null) {
         final updatedPhotos = [..._photos, photoId];
         
-        await AppwriteService.databases.updateDocument(
-          databaseId: AppwriteConfig.databaseId,
-          collectionId: AppwriteConfig.profilesCollectionId,
-          documentId: userId,
-          data: {'photos': updatedPhotos},
-        );
+        await SupabaseService.client
+            .from('users')
+            .update({'photos': updatedPhotos})
+            .eq('id', userId);
 
         if (mounted) {
           setState(() {
@@ -118,12 +115,10 @@ class _PhotoManagerScreenState extends State<PhotoManagerScreen> {
       
       final updatedPhotos = List<String>.from(_photos)..removeAt(index);
       
-      await AppwriteService.databases.updateDocument(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.profilesCollectionId,
-        documentId: userId,
-        data: {'photos': updatedPhotos},
-      );
+      await SupabaseService.client
+          .from('users')
+          .update({'photos': updatedPhotos})
+          .eq('id', userId);
 
       if (mounted) {
         setState(() {

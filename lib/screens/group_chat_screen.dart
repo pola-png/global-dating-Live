@@ -1,13 +1,16 @@
-import 'package:appwrite/appwrite.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:country_picker/country_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../components/report_dialog.dart';
 import '../components/responsive_page.dart';
-import '../config/appwrite_config.dart';
-import '../services/appwrite_service.dart';
+import '../services/supabase_service.dart';
 import '../services/storage_service.dart';
+import '../services/subscription_service.dart';
+import '../services/admob_service.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:flutter/foundation.dart';
 
 class GroupChatScreen extends StatefulWidget {
   final String countrySlug;
@@ -29,56 +32,71 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   List<Map<String, dynamic>> _messages = [];
   int _memberCount = 0;
   bool _isLoading = true;
+  BannerAd? _bannerAd;
+  bool _adLoaded = false;
+  RealtimeChannel? _subscription;
 
   @override
   void initState() {
     super.initState();
     _loadData();
     _subscribeToMessages();
+    if (!kIsWeb && SubscriptionService.shouldShowGroupChatAds) {
+      _loadBannerAd();
+    }
+  }
+
+  void _loadBannerAd() {
+    _bannerAd = AdMobService.createBannerAd()
+      ..load().then((_) {
+        if (mounted) {
+          setState(() {
+            _adLoaded = true;
+          });
+        }
+      });
   }
 
   @override
   void dispose() {
     _messageController.dispose();
     _scrollController.dispose();
+    _bannerAd?.dispose();
+    if (_subscription != null) {
+      SupabaseService.client.removeChannel(_subscription!);
+    }
     super.dispose();
   }
 
   Future<void> _loadData() async {
     try {
-      final db = AppwriteService.databases;
+      final metaRes = await SupabaseService.client
+          .from('group_metadata')
+          .select('member_count')
+          .eq('country_slug', widget.countrySlug)
+          .maybeSingle();
 
-      final metaRes = await db.listDocuments(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.groupMetadataCollectionId,
-        queries: [
-          Query.equal('countrySlug', widget.countrySlug),
-        ],
-      );
-
-      if (metaRes.documents.isNotEmpty) {
-        _memberCount =
-            metaRes.documents.first.data['memberCount'] as int? ?? 0;
+      if (metaRes != null) {
+        _memberCount = metaRes['member_count'] as int? ?? 0;
       } else {
         _memberCount = 0;
       }
 
-      final messagesRes = await db.listDocuments(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.messagesCollectionId,
-        queries: [
-          Query.equal('chatRoomId', widget.countrySlug),
-          Query.orderAsc('createdAt'),
-          Query.limit(50),
-        ],
-      );
+      final messagesRes = await SupabaseService.client
+          .from('group_messages')
+          .select('*')
+          .eq('group_id', widget.countrySlug)
+          .order('created_at', ascending: true)
+          .limit(50);
 
-      final messages = messagesRes.documents
-          .map((d) => {
-                ...d.data,
-                'id': d.$id,
-              })
-          .toList();
+      final messages = messagesRes.map((d) => {
+        'id': d['id'].toString(),
+        'text': d['text'],
+        'senderId': d['sender_id'],
+        'chatRoomId': d['group_id'],
+        'createdAt': d['created_at'],
+        'senderName': d['sender_name'],
+      }).toList();
 
       if (mounted) {
         setState(() {
@@ -102,34 +120,38 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   void _subscribeToMessages() {
-    final sub = AppwriteService.realtime.subscribe([
-      'databases.${AppwriteConfig.databaseId}.collections.${AppwriteConfig.messagesCollectionId}.documents',
-    ]);
+    _subscription = SupabaseService.client.channel('group_messages_${widget.countrySlug}');
+    _subscription!.onPostgresChanges(
+      event: PostgresChangeEvent.insert,
+      schema: 'public',
+      table: 'group_messages',
+      callback: (payload) {
+        final record = payload.newRecord;
+        if (record['group_id'] != widget.countrySlug) return;
 
-    sub.stream.listen((event) {
-      if (!event.events.any((e) => e.endsWith('.create'))) return;
-      final data = event.payload['data'] as Map<String, dynamic>?;
-      if (data == null) return;
-      if (data['chatRoomId'] != widget.countrySlug) return;
+        final newMessage = {
+          'id': record['id'].toString(),
+          'text': record['text'],
+          'senderId': record['sender_id'],
+          'chatRoomId': record['group_id'],
+          'createdAt': record['created_at'],
+          'senderName': record['sender_name'],
+        };
 
-      final newMessage = {
-        ...data,
-        'id': event.payload['\$id'] as String,
-      };
-
-      if (mounted) {
-        setState(() {
-          final index =
-              _messages.indexWhere((msg) => msg['id'] == 'sending...');
-          if (index != -1) {
-            _messages[index] = newMessage;
-          } else {
-            _messages.add(newMessage);
-          }
-        });
-        _scrollToBottom();
-      }
-    });
+        if (mounted) {
+          setState(() {
+            final index =
+                _messages.indexWhere((msg) => msg['id'] == 'sending...');
+            if (index != -1) {
+              _messages[index] = newMessage;
+            } else {
+              _messages.add(newMessage);
+            }
+          });
+          _scrollToBottom();
+        }
+      },
+    ).subscribe();
   }
 
   void _scrollToBottom() {
@@ -145,6 +167,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   Future<void> _sendMessage() async {
+    final plan = SubscriptionService.currentPlan;
+    if (plan != SubscriptionPlan.premium && plan != SubscriptionPlan.special) return;
+
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
 
@@ -167,20 +192,26 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     _messageController.clear();
     _scrollToBottom();
 
+    String senderName = 'User';
     try {
-      await AppwriteService.databases.createDocument(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.messagesCollectionId,
-        documentId: ID.unique(),
-        data: {
-          'text': text,
-          'senderId': currentUserId,
-          'chatRoomId': widget.countrySlug,
-          'createdAt': tempMessage['createdAt'],
-          'isRead': false,
-          'status': 'sent',
-        },
-      );
+      final ownProfile = await SupabaseService.client
+          .from('users')
+          .select('full_name')
+          .eq('id', currentUserId)
+          .maybeSingle();
+      if (ownProfile != null) {
+        senderName = ownProfile['full_name'] ?? 'User';
+      }
+    } catch (_) {}
+
+    try {
+      await SupabaseService.client.from('group_messages').insert({
+        'group_id': widget.countrySlug,
+        'sender_id': currentUserId,
+        'text': text,
+        'sender_name': senderName,
+        'created_at': tempMessage['createdAt'],
+      });
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -276,6 +307,15 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                           },
                         ),
             ),
+            // Banner ad for paid users in group chat alone
+            if (_adLoaded && _bannerAd != null && SubscriptionService.shouldShowGroupChatAds)
+              Container(
+                alignment: Alignment.center,
+                width: _bannerAd!.size.width.toDouble(),
+                height: _bannerAd!.size.height.toDouble(),
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: AdWidget(ad: _bannerAd!),
+              ),
             // Message input (protected from system gesture/nav with SafeArea)
             SafeArea(
               top: false,
@@ -293,8 +333,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                       child: TextField(
                         controller: _messageController,
                         maxLines: null,
+                        enabled: SubscriptionService.currentPlan == SubscriptionPlan.premium || SubscriptionService.currentPlan == SubscriptionPlan.special,
                         decoration: InputDecoration(
-                          hintText: 'Type a message...',
+                          hintText: (SubscriptionService.currentPlan == SubscriptionPlan.premium || SubscriptionService.currentPlan == SubscriptionPlan.special)
+                              ? 'Type a message...'
+                              : 'Upgrade to Premium to send messages',
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(24),
                           ),
@@ -308,7 +351,32 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                     ),
                     const SizedBox(width: 8),
                     IconButton(
-                      onPressed: _sendMessage,
+                      onPressed: (SubscriptionService.currentPlan == SubscriptionPlan.premium || SubscriptionService.currentPlan == SubscriptionPlan.special)
+                          ? _sendMessage
+                          : () {
+                              showDialog(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  title: const Text('Premium Feature'),
+                                  content: const Text(
+                                    'Participating in Group Chats is only available on the Premium or Special VIP plan.\n\nUpgrade today to text in group chat channels!',
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(ctx),
+                                      child: const Text('Cancel'),
+                                    ),
+                                    ElevatedButton(
+                                      onPressed: () {
+                                        Navigator.pop(ctx);
+                                        Navigator.pushNamed(context, '/paywall');
+                                      },
+                                      child: const Text('Upgrade'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
                       icon: const Icon(LucideIcons.send),
                       style: IconButton.styleFrom(
                         backgroundColor: theme.colorScheme.primary,
@@ -357,29 +425,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (!isCurrentUser) ...[
-                  GestureDetector(
-                    onTap: () => Navigator.pushNamed(
-                      context,
-                      '/profile/$senderId',
-                    ),
-                    child: CircleAvatar(
-                      radius: 16,
-                      backgroundColor: theme.colorScheme.primary,
-                      backgroundImage: avatarUrl != null
-                          ? CachedNetworkImageProvider(avatarUrl)
-                          : null,
-                      child: avatarUrl == null
-                          ? Text(
-                              authorName.isNotEmpty ? authorName[0].toUpperCase() : 'U',
-                              style: TextStyle(
-                                color: theme.colorScheme.onPrimary,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            )
-                          : null,
-                    ),
-                  ),
+                  _buildBubbleAvatar(senderId, authorName, avatarUrl, theme),
                   const SizedBox(width: 8),
                 ],
                 Flexible(
@@ -401,7 +447,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
-                                color: theme.textTheme.bodySmall?.color,
+                                color: theme.colorScheme.onSurfaceVariant,
                               ),
                             ),
                           ),
@@ -414,7 +460,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                         decoration: BoxDecoration(
                           color: isCurrentUser 
                               ? theme.colorScheme.primary
-                              : theme.colorScheme.surface,
+                              : theme.colorScheme.surfaceContainer,
                           borderRadius: BorderRadius.circular(18),
                         ),
                         child: Text(
@@ -431,13 +477,17 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                           _formatTime(message['createdAt'] as String),
                           style: TextStyle(
                             fontSize: 10,
-                            color: theme.textTheme.bodySmall?.color,
+                            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                           ),
                         ),
                       ),
                     ],
                   ),
                 ),
+                if (isCurrentUser) ...[
+                  const SizedBox(width: 8),
+                  _buildBubbleAvatar(currentUserId, 'Me', null, theme), // Wait, current user avatar can resolve later or use initial
+                ],
               ],
             ),
           ),
@@ -446,15 +496,72 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     );
   }
 
+  Widget _buildBubbleAvatar(String? userId, String authorName, String? avatarUrl, ThemeData theme) {
+    return FutureBuilder<Map<String, dynamic>?>(
+      future: _getAuthorProfile(userId ?? ''),
+      builder: (context, snapshot) {
+        final profile = snapshot.data ?? {};
+        final name = profile['fullName'] ?? authorName;
+        final path = profile['avatarPath'] as String?;
+        final photos = profile['photos'] as List?;
+        String? resolvedUrl = avatarUrl;
+        
+        if (resolvedUrl == null) {
+          if (photos != null && photos.isNotEmpty) {
+            resolvedUrl = StorageService.buildFileUrl(photos.first);
+          } else if (path != null && path.isNotEmpty) {
+            resolvedUrl = StorageService.buildFileUrl(path);
+          }
+        }
+
+        return GestureDetector(
+          onTap: () {
+            if (userId != null && userId.isNotEmpty) {
+              Navigator.pushNamed(
+                context,
+                '/profile/$userId',
+              );
+            }
+          },
+          child: CircleAvatar(
+            radius: 16,
+            backgroundColor: theme.colorScheme.primary,
+            backgroundImage: resolvedUrl != null
+                ? CachedNetworkImageProvider(resolvedUrl)
+                : null,
+            child: resolvedUrl == null
+                ? Text(
+                    name.isNotEmpty ? name[0].toUpperCase() : 'U',
+                    style: TextStyle(
+                      color: theme.colorScheme.onPrimary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  )
+                : null,
+          ),
+        );
+      }
+    );
+  }
+
   Future<Map<String, dynamic>?> _getAuthorProfile(String userId) async {
     if (userId.isEmpty) return null;
     try {
-      final doc = await AppwriteService.databases.getDocument(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.profilesCollectionId,
-        documentId: userId,
-      );
-      return {...doc.data, 'id': doc.$id};
+      final doc = await SupabaseService.client
+          .from('users')
+          .select('*')
+          .eq('id', userId)
+          .maybeSingle();
+      if (doc != null) {
+        return {
+          ...doc,
+          'id': doc['id'],
+          'fullName': doc['full_name'],
+          'avatarLetter': doc['avatar_letter'] ?? 'U',
+        };
+      }
+      return null;
     } catch (_) {
       return null;
     }

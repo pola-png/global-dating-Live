@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import '../services/admob_service.dart';
 
@@ -53,10 +54,13 @@ class _ImageDetailScreenState extends State<ImageDetailScreen> {
                   panEnabled: true,
                   minScale: 0.5,
                   maxScale: 4.0,
-                  child: Image.network(
-                    widget.imageUrl,
+                  child: CachedNetworkImage(
+                    imageUrl: widget.imageUrl,
                     fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) => Container(
+                    placeholder: (context, url) => const Center(
+                      child: CircularProgressIndicator(),
+                    ),
+                    errorWidget: (context, url, error) => Container(
                       color: Colors.grey[200],
                       child: const Center(child: Icon(Icons.broken_image, size: 48)),
                     ),

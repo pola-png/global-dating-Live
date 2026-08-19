@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../components/responsive_page.dart';
 import '../services/admin_support_service.dart';
 import '../services/google_play_billing_service.dart';
-import '../services/appwrite_service.dart';
+import '../services/supabase_service.dart';
 
 class FastMatchScreen extends StatefulWidget {
   const FastMatchScreen({super.key});

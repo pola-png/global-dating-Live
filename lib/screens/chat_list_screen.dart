@@ -1,10 +1,9 @@
-import 'package:appwrite/appwrite.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../components/avatar_widget.dart';
 import '../components/responsive_page.dart';
-import '../config/appwrite_config.dart';
-import '../services/appwrite_service.dart';
+import '../services/supabase_service.dart';
 import '../services/timezone_service.dart';
 
 class ChatListScreen extends StatefulWidget {
@@ -19,6 +18,7 @@ class _ChatListScreenState extends State<ChatListScreen> with AutomaticKeepAlive
   List<Map<String, dynamic>> _chats = [];
   List<Map<String, dynamic>> _filteredChats = [];
   bool _isLoading = true;
+  RealtimeChannel? _subscription;
 
   @override
   bool get wantKeepAlive => true;
@@ -33,6 +33,9 @@ class _ChatListScreenState extends State<ChatListScreen> with AutomaticKeepAlive
   @override
   void dispose() {
     _searchController.dispose();
+    if (_subscription != null) {
+      SupabaseService.client.removeChannel(_subscription!);
+    }
     super.dispose();
   }
 
@@ -44,72 +47,76 @@ class _ChatListScreenState extends State<ChatListScreen> with AutomaticKeepAlive
         return;
       }
 
-      final db = AppwriteService.databases;
-
-      final roomsRes = await db.listDocuments(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.chatRoomsCollectionId,
-        queries: [
-          Query.orderDesc('lastActive'),
-          Query.or([
-            Query.equal('user1Id', userId),
-            Query.equal('user2Id', userId),
-          ]),
-        ],
-      );
+      final roomsRes = await SupabaseService.client
+          .from('chat_rooms')
+          .select('*')
+          .or('user1_id.eq.$userId,user2_id.eq.$userId')
+          .order('last_active', ascending: false);
 
       final List<Map<String, dynamic>> chatsWithUsers = [];
 
-      for (final room in roomsRes.documents) {
-        final data = room.data;
-        final otherUserId = data['user1Id'] == userId
-            ? data['user2Id'] as String
-            : data['user1Id'] as String;
+      for (final room in roomsRes) {
+        final roomId = room['id'].toString();
+        final otherUserId = room['user1_id'] == userId
+            ? room['user2_id'] as String
+            : room['user1_id'] as String;
 
-        final profileRes = await db.getDocument(
-          databaseId: AppwriteConfig.databaseId,
-          collectionId: AppwriteConfig.profilesCollectionId,
-          documentId: otherUserId,
-        );
+        final profileRes = await SupabaseService.client
+            .from('users')
+            .select('*')
+            .eq('id', otherUserId)
+            .maybeSingle();
 
-        final unreadRes = await db.listDocuments(
-          databaseId: AppwriteConfig.databaseId,
-          collectionId: AppwriteConfig.messagesCollectionId,
-          queries: [
-            Query.equal('chatRoomId', room.$id),
-            Query.equal('senderId', otherUserId),
-            Query.equal('isRead', false),
-          ],
-        );
+        if (profileRes == null) continue;
 
-        // Fetch the last message for this chat room
+        // Map keys to CamelCase to match UI expectations
+        final otherUserMapped = {
+          'id': profileRes['id'],
+          'fullName': profileRes['full_name'],
+          'avatarLetter': profileRes['avatar_letter'] ?? 'U',
+          'avatarPath': profileRes['avatar_path'],
+        };
+
+        final unreadCountRes = await SupabaseService.client
+            .from('messages')
+            .select('id')
+            .eq('chat_room_id', roomId)
+            .eq('sender_id', otherUserId)
+            .eq('is_read', false);
+            
+        final unreadCount = unreadCountRes.length;
+
         Map<String, dynamic>? lastMessage;
-        try {
-          final lastMsgRes = await db.listDocuments(
-            databaseId: AppwriteConfig.databaseId,
-            collectionId: AppwriteConfig.messagesCollectionId,
-            queries: [
-              Query.equal('chatRoomId', room.$id),
-              Query.orderDesc('createdAt'),
-              Query.limit(1),
-            ],
-          );
-          if (lastMsgRes.documents.isNotEmpty) {
-            lastMessage = {
-              ...lastMsgRes.documents.first.data,
-              'id': lastMsgRes.documents.first.$id,
-            };
-          }
-        } catch (_) {
-          // Ignore errors fetching last message
+        final lastMessageId = room['last_message_id']?.toString();
+        if (lastMessageId != null) {
+          try {
+            final lastMsgRes = await SupabaseService.client
+                .from('messages')
+                .select('*')
+                .eq('id', lastMessageId)
+                .maybeSingle();
+            if (lastMsgRes != null) {
+              lastMessage = {
+                'id': lastMsgRes['id'].toString(),
+                'text': lastMsgRes['text'],
+                'senderId': lastMsgRes['sender_id'],
+                'chatRoomId': lastMsgRes['chat_room_id'],
+                'createdAt': lastMsgRes['created_at'],
+                'isRead': lastMsgRes['is_read'],
+              };
+            }
+          } catch (_) {}
         }
 
         chatsWithUsers.add({
-          'id': room.$id,
-          ...data,
-          'other_user': profileRes.data,
+          'id': roomId,
+          'user1Id': room['user1_id'],
+          'user2Id': room['user2_id'],
+          'lastMessageId': room['last_message_id'],
+          'lastActive': room['last_active'],
+          'other_user': otherUserMapped,
           'other_user_id': otherUserId,
-          'unread_count': unreadRes.total,
+          'unread_count': unreadCount,
           'last_message': lastMessage,
         });
       }
@@ -127,15 +134,16 @@ class _ChatListScreenState extends State<ChatListScreen> with AutomaticKeepAlive
   }
 
   void _subscribeToUpdates() {
-    final sub = AppwriteService.realtime.subscribe([
-      'databases.${AppwriteConfig.databaseId}.collections.${AppwriteConfig.messagesCollectionId}.documents',
-    ]);
-
-    sub.stream.listen((event) {
-      if (event.events.any((e) => e.endsWith('.create'))) {
+    if (_subscription != null) return;
+    _subscription = SupabaseService.client.channel('chat_list_updates');
+    _subscription!.onPostgresChanges(
+      event: PostgresChangeEvent.insert,
+      schema: 'public',
+      table: 'messages',
+      callback: (payload) {
         _loadChats();
-      }
-    });
+      },
+    ).subscribe();
   }
 
   void _filterChats() {

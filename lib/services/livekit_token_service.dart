@@ -1,6 +1,5 @@
 import 'dart:convert';
-
-import '../services/appwrite_service.dart';
+import 'supabase_service.dart';
 
 class LiveKitTokenService {
   static Future<String?> fetchToken({
@@ -10,25 +9,26 @@ class LiveKitTokenService {
     String? coHostId,
   }) async {
     try {
-      // Use Appwrite Functions execution
-      final execution = await AppwriteService.functions.createExecution(
-        functionId: 'livekit-token',
-        body: jsonEncode({
+      final response = await SupabaseService.client.functions.invoke(
+        'livekit-token',
+        body: {
           'roomName': roomName,
           'identity': identity,
           'isHost': isHost,
           'coHostId': coHostId,
-        }),
+        },
       );
 
-      if (execution.responseStatusCode != 200) {
+      if (response.status != 200) {
         return null;
       }
 
-      final data = jsonDecode(execution.responseBody) as Map<String, dynamic>;
-      final token = data['token'];
-      if (token is String && token.isNotEmpty) {
-        return token;
+      final data = response.data;
+      if (data is Map<String, dynamic>) {
+        return data['token'] as String?;
+      } else if (data is String) {
+        final decoded = jsonDecode(data) as Map<String, dynamic>;
+        return decoded['token'] as String?;
       }
       return null;
     } catch (_) {
@@ -36,4 +36,3 @@ class LiveKitTokenService {
     }
   }
 }
-

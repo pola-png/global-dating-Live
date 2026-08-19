@@ -1,12 +1,10 @@
-import 'package:appwrite/appwrite.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:livekit_client/livekit_client.dart' hide ConnectionState;
 import 'package:lucide_icons/lucide_icons.dart';
 
-import '../config/appwrite_config.dart';
-import '../services/wallet_service.dart';
 import '../services/livekit_token_service.dart';
-import '../services/appwrite_service.dart';
+import '../services/supabase_service.dart';
 
 class VideoCallScreen extends StatefulWidget {
   final Map<String, dynamic>? otherUser;
@@ -32,7 +30,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
   bool _isMuted = false;
   bool _isVideoOff = false;
   bool _isRinging = false;
-  RealtimeSubscription? _callSubscription;
+  RealtimeChannel? _callSubscription;
   String? _callDocId;
 
   @override
@@ -47,7 +45,9 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
 
   @override
   void dispose() {
-    _callSubscription?.close();
+    if (_callSubscription != null) {
+      SupabaseService.client.removeChannel(_callSubscription!);
+    }
     _room?.disconnect();
     _endCall();
     super.dispose();
@@ -88,22 +88,17 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
       final userId = await SessionStore.ensureUserId();
       if (userId == null) return;
 
-      final callId = ID.unique();
-      final callDoc = await AppwriteService.databases.createDocument(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.videoCallsCollectionId,
-        documentId: callId,
-        data: {
-          'callerId': userId,
-          'receiverId': widget.otherUser?['id'],
-          'status': 'ringing',
-          'createdAt': DateTime.now().toIso8601String(),
-        },
-      );
+      final res = await SupabaseService.client.from('video_calls').insert({
+        'caller_id': userId,
+        'receiver_id': widget.otherUser?['id'],
+        'status': 'ringing',
+        'created_at': DateTime.now().toIso8601String(),
+      }).select().single();
 
-      setState(() => _callDocId = callDoc.$id);
+      setState(() => _callDocId = res['id'].toString());
       _subscribeToCallStatus();
     } catch (e) {
+      debugPrint('CRITICAL: error in _initiateCall: $e');
       setState(() {
         _error = 'Failed to initiate call';
         _loading = false;
@@ -112,87 +107,57 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
   }
 
   void _subscribeToCallStatus() {
-    _callSubscription = AppwriteService.realtime.subscribe([
-      'databases.${AppwriteConfig.databaseId}.collections.${AppwriteConfig.videoCallsCollectionId}.documents',
-    ]);
+    _callSubscription = SupabaseService.client.channel('video_calls_status');
+    _callSubscription!.onPostgresChanges(
+      event: PostgresChangeEvent.update,
+      schema: 'public',
+      table: 'video_calls',
+      callback: (payload) {
+        final record = payload.newRecord;
+        if (record['id']?.toString() != _callDocId) return;
 
-    _callSubscription!.stream.listen((event) {
-      if (!event.events.any((e) => e.endsWith('.update'))) return;
-      final payload = event.payload;
-      if (payload['\$id'] != _callDocId) return;
-
-      final status = payload['status'];
-      if (status == 'accepted') {
-        _startCall();
-      } else if (status == 'rejected' || status == 'ended') {
-        if (mounted) Navigator.pop(context);
-      }
-    });
+        final status = record['status'];
+        if (status == 'accepted') {
+          _startCall();
+        } else if (status == 'rejected' || status == 'ended') {
+          if (mounted) Navigator.pop(context);
+        }
+      },
+    ).subscribe();
   }
 
   Future<void> _acceptCall() async {
-    const cost = 30;
-    final ok = await WalletService.spendCoins(cost);
-    if (!mounted) return;
-    if (!ok) {
-      setState(() {
-        _error = 'Not enough coins (30 required)';
-        _loading = false;
-      });
-      return;
-    }
-
     try {
-      await AppwriteService.databases.updateDocument(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.videoCallsCollectionId,
-        documentId: widget.callId!,
-        data: {'status': 'accepted'},
-      );
+      await SupabaseService.client
+          .from('video_calls')
+          .update({'status': 'accepted'})
+          .eq('id', widget.callId!);
       _startCall();
     } catch (_) {}
   }
 
   Future<void> _rejectCall() async {
     try {
-      await AppwriteService.databases.updateDocument(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.videoCallsCollectionId,
-        documentId: widget.callId!,
-        data: {'status': 'rejected'},
-      );
+      await SupabaseService.client
+          .from('video_calls')
+          .update({'status': 'rejected'})
+          .eq('id', widget.callId!);
     } catch (_) {}
     if (mounted) Navigator.pop(context);
   }
 
   Future<void> _startCall() async {
     setState(() => _isRinging = false);
-    
-    if (!widget.isReceiver) {
-      const cost = 30;
-      final ok = await WalletService.spendCoins(cost);
-      if (!mounted) return;
-      if (!ok) {
-        setState(() {
-          _error = 'Not enough coins (30 required)';
-          _loading = false;
-        });
-        return;
-      }
-    }
-
     await _connectToRoom();
   }
 
   Future<void> _endCall() async {
     if (_callDocId != null) {
       try {
-        await AppwriteService.databases.updateDocument(
-          databaseId: AppwriteConfig.databaseId,
-          collectionId: AppwriteConfig.videoCallsCollectionId,
-          documentId: _callDocId!,
-          data: {'status': 'ended'},
-        );
+        await SupabaseService.client
+            .from('video_calls')
+            .update({'status': 'ended'})
+            .eq('id', _callDocId!);
       } catch (_) {}
     }
   }

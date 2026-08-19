@@ -1,4 +1,4 @@
-package worldglobaldating.app
+package datingconnect.app
 
 import android.content.Context
 import android.widget.TextView

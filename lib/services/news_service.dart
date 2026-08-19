@@ -1,70 +1,44 @@
-import 'package:appwrite/appwrite.dart';
-import '../config/app_config.dart';
+import 'supabase_service.dart';
 
 class NewsService {
-  late Client client;
-  late Databases databases;
-  final String databaseId = 'news_db';
-  final String collectionId = 'news_articles';
-
-  NewsService() {
-    client = Client()
-      .setEndpoint(AppConfig.appwriteEndpoint)
-      .setProject(AppConfig.appwriteProjectId);
-    
-    databases = Databases(client);
-  }
-
   Future<dynamic> createArticle(Map<String, dynamic> article) async {
-    return await databases.createDocument(
-      databaseId: databaseId,
-      collectionId: collectionId,
-      documentId: ID.unique(),
-      data: article,
-    );
+    return await SupabaseService.client.from('posts').insert(article).select().single();
   }
 
   Future<dynamic> getArticles({int limit = 20, int offset = 0}) async {
-    return await databases.listDocuments(
-      databaseId: databaseId,
-      collectionId: collectionId,
-      queries: [
-        Query.orderDesc('publishedDate'),
-        Query.limit(limit),
-        Query.offset(offset)
-      ],
-    );
+    final response = await SupabaseService.client
+        .from('posts')
+        .select('*')
+        .order('published_date', ascending: false)
+        .range(offset, offset + limit - 1);
+    return {'documents': response};
   }
 
   Future<dynamic> getArticlesByCategory(String category, {int limit = 20}) async {
-    return await databases.listDocuments(
-      databaseId: databaseId,
-      collectionId: collectionId,
-      queries: [
-        Query.equal('category', category),
-        Query.orderDesc('publishedDate'),
-        Query.limit(limit)
-      ],
-    );
+    final response = await SupabaseService.client
+        .from('posts')
+        .select('*')
+        .eq('category', category)
+        .order('published_date', ascending: false)
+        .limit(limit);
+    return {'documents': response};
   }
 
   Future<dynamic> getTrendingArticles({int limit = 10}) async {
-    return await databases.listDocuments(
-      databaseId: databaseId,
-      collectionId: collectionId,
-      queries: [
-        Query.orderDesc('trafficScore'),
-        Query.limit(limit)
-      ],
-    );
+    final response = await SupabaseService.client
+        .from('posts')
+        .select('*')
+        .order('traffic_score', ascending: false)
+        .limit(limit);
+    return {'documents': response};
   }
 
   Future<dynamic> getArticleBySlug(String slug) async {
-    final result = await databases.listDocuments(
-      databaseId: databaseId,
-      collectionId: collectionId,
-      queries: [Query.equal('slug', slug)],
-    );
-    return result.documents.isNotEmpty ? result.documents[0] : null;
+    final response = await SupabaseService.client
+        .from('posts')
+        .select('*')
+        .eq('slug', slug)
+        .maybeSingle();
+    return response;
   }
 }

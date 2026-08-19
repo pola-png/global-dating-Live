@@ -1,9 +1,6 @@
-import 'package:appwrite/appwrite.dart';
 import 'package:flutter/material.dart';
-
 import '../config/admin_config.dart';
-import '../config/appwrite_config.dart';
-import 'appwrite_service.dart';
+import 'supabase_service.dart';
 
 class AdminSupportService {
   static Future<String?> openAdminChat(BuildContext context) async {
@@ -29,52 +26,39 @@ class AdminSupportService {
     final otherUserId = AdminConfig.adminUserId;
 
     try {
-      final db = AppwriteService.databases;
+      final existingRooms = await SupabaseService.client
+          .from('chat_rooms')
+          .select('*')
+          .or('and(user1_id.eq.$currentUserId,user2_id.eq.$otherUserId),and(user1_id.eq.$otherUserId,user2_id.eq.$currentUserId)');
 
-      final existing = await db.listDocuments(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.chatRoomsCollectionId,
-        queries: [
-          Query.equal('user1Id', currentUserId),
-          Query.equal('user2Id', otherUserId),
-        ],
-      );
+      Map<String, dynamic>? chatRoomDoc;
+      if (existingRooms.isNotEmpty) {
+        chatRoomDoc = existingRooms.first;
+      } else {
+        chatRoomDoc = await SupabaseService.client.from('chat_rooms').insert({
+          'user1_id': currentUserId,
+          'user2_id': otherUserId,
+          'last_active': DateTime.now().toIso8601String(),
+        }).select().single();
+      }
 
-      final inverse = await db.listDocuments(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.chatRoomsCollectionId,
-        queries: [
-          Query.equal('user1Id', otherUserId),
-          Query.equal('user2Id', currentUserId),
-        ],
-      );
-
-      var chatRoomDoc = existing.documents.isNotEmpty
-          ? existing.documents.first
-          : (inverse.documents.isNotEmpty ? inverse.documents.first : null);
-
-      chatRoomDoc ??= await db.createDocument(
-          databaseId: AppwriteConfig.databaseId,
-          collectionId: AppwriteConfig.chatRoomsCollectionId,
-          documentId: ID.unique(),
-          data: {
-            'user1Id': currentUserId,
-            'user2Id': otherUserId,
-            'lastMessageId': null,
-            'lastActive': DateTime.now().toIso8601String(),
-          },
-        );
-
-      final chatRoomId = chatRoomDoc.$id;
+      final chatRoomId = chatRoomDoc['id'].toString();
 
       Map<String, dynamic>? adminProfile;
       try {
-        final doc = await db.getDocument(
-          databaseId: AppwriteConfig.databaseId,
-          collectionId: AppwriteConfig.profilesCollectionId,
-          documentId: otherUserId,
-        );
-        adminProfile = doc.data;
+        final doc = await SupabaseService.client
+            .from('users')
+            .select('*')
+            .eq('id', otherUserId)
+            .maybeSingle();
+        if (doc != null) {
+          adminProfile = {
+            ...doc,
+            'id': doc['id'],
+            'fullName': doc['full_name'],
+            'avatarLetter': doc['avatar_letter'] ?? 'A',
+          };
+        }
       } catch (_) {
         adminProfile = null;
       }
@@ -87,7 +71,9 @@ class AdminSupportService {
         arguments: {
           'chatRoom': {
             'id': chatRoomId,
-            ...chatRoomDoc.data,
+            'user1Id': chatRoomDoc['user1_id'],
+            'user2Id': chatRoomDoc['user2_id'],
+            'lastActive': chatRoomDoc['last_active'],
           },
           'otherUser': adminProfile ??
               {
@@ -112,8 +98,6 @@ class AdminSupportService {
   }
 
   static Future<void> sendMessage(String message) async {
-    // This method can be used to send messages to admin support
-    // Implementation would depend on your messaging system
     debugPrint('Admin support message: $message');
   }
 }

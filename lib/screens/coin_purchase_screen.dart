@@ -5,7 +5,7 @@ import '../components/responsive_page.dart';
 import '../services/google_play_billing_service.dart';
 import '../services/wallet_service.dart';
 import '../services/admob_service.dart';
-import '../services/appwrite_service.dart';
+import '../services/supabase_service.dart';
 
 class CoinPurchaseScreen extends StatefulWidget {
   const CoinPurchaseScreen({super.key});
@@ -355,19 +355,20 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
                           ),
                           const SizedBox(height: 16),
                           ...[
-                            {'coins': 10, 'id': GooglePlayBillingService.coins10ProductId},
-                            {'coins': 30, 'id': GooglePlayBillingService.coins30ProductId},
-                            {'coins': 60, 'id': GooglePlayBillingService.coins60ProductId},
+                            {'coins': 10, 'id': GooglePlayBillingService.coins10ProductId, 'fallback': '\$0.25'},
+                            {'coins': 30, 'id': GooglePlayBillingService.coins30ProductId, 'fallback': '\$0.60'},
+                            {'coins': 60, 'id': GooglePlayBillingService.coins60ProductId, 'fallback': '\$0.80'},
                           ].map((pkg) {
                             final coinsValue = pkg['coins'] as int;
                             final product = GooglePlayBillingService.instance.productForId(pkg['id'] as String);
                             final isProcessing = _processingCoins.contains(coinsValue);
+                            final priceText = product?.price ?? pkg['fallback'] as String;
 
                             return Container(
                               margin: const EdgeInsets.only(bottom: 8),
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: colorScheme.surfaceContainer,
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(color: colorScheme.outline.withValues(alpha: 0.15)),
                               ),
@@ -379,11 +380,20 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Text('$coinsValue coins'),
+                                        Text(
+                                          '$coinsValue coins',
+                                          style: TextStyle(
+                                            color: colorScheme.onSurface,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
                                         const SizedBox(height: 2),
                                         Text(
-                                          product?.price ?? 'Available in Google Play Console',
-                                          style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                                          priceText,
+                                          style: TextStyle(
+                                            color: colorScheme.onSurfaceVariant,
+                                            fontSize: 12,
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -438,7 +448,9 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [Colors.orange.shade50, Colors.orange.shade100],
+                        colors: Theme.of(context).brightness == Brightness.dark
+                            ? [Colors.orange.shade900.withValues(alpha: 0.15), Colors.orange.shade800.withValues(alpha: 0.25)]
+                            : [Colors.orange.shade50, Colors.orange.shade100],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
@@ -472,14 +484,14 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
                                     'Watch Ads to Earn Coins',
                                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                       fontWeight: FontWeight.bold,
-                                      color: Colors.orange.shade800,
+                                      color: Theme.of(context).brightness == Brightness.dark ? Colors.orange.shade300 : Colors.orange.shade800,
                                     ),
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
                                     'Only way to get coins - watch rewarded ads',
                                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                      color: Colors.orange.shade700,
+                                      color: Theme.of(context).brightness == Brightness.dark ? Colors.orange.shade200 : Colors.orange.shade700,
                                     ),
                                   ),
                                 ],
@@ -490,14 +502,12 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
                         const SizedBox(height: 16),
                         // Coin packages with ads
                         ...[
-                          {'coins': 10, 'ads': 1},
-                          {'coins': 30, 'ads': 2},
-                          {'coins': 60, 'ads': 3},
+                          {'coins': 2, 'ads': 1},
                         ].map((pkg) => Container(
                           margin: const EdgeInsets.only(bottom: 8),
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: colorScheme.surfaceContainer,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(color: Colors.orange.withValues(alpha: 0.2)),
                           ),
@@ -505,9 +515,18 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
                             children: [
                               Icon(LucideIcons.coins, color: Colors.amber.shade600, size: 20),
                               const SizedBox(width: 8),
-                              Text('${pkg['coins']} coins'),
+                              Text(
+                                '${pkg['coins']} coins',
+                                style: TextStyle(
+                                  color: colorScheme.onSurface,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                               const Spacer(),
-                              Text('${pkg['ads']} ads', style: TextStyle(color: Colors.grey.shade600)),
+                              Text(
+                                '${pkg['ads']} ads',
+                                style: TextStyle(color: colorScheme.onSurfaceVariant),
+                              ),
                               const SizedBox(width: 8),
                               FilledButton(
                                 onPressed: _processingCoins.contains(pkg['coins']) ? null : () => _watchAdsForCoins(pkg['coins'] as int, pkg['ads'] as int),
@@ -565,10 +584,7 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
                           ],
                         ),
                         const SizedBox(height: 12),
-                        _buildUsageItem(LucideIcons.video, 'Video Call', '30 coins'),
-                        _buildUsageItem(LucideIcons.radio, 'Create Live Stream', '50 coins'),
-                        _buildUsageItem(LucideIcons.users, 'Join Live Stream', '20 coins'),
-                        _buildUsageItem(LucideIcons.zap, 'Boost Profile', '50 coins'),
+                        _buildUsageItem(LucideIcons.zap, 'Boost Profile (14 days)', '50 coins'),
                       ],
                     ),
                   ),

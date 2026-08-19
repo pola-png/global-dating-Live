@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
-import '../config/appwrite_config.dart';
-import '../services/appwrite_service.dart';
+import '../services/supabase_service.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -62,27 +61,41 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         return;
       }
 
-      final doc = await AppwriteService.databases.getDocument(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.profilesCollectionId,
-        documentId: userId,
-      );
-      final profileResponse = doc.data;
+      final doc = await SupabaseService.client
+          .from('users')
+          .select('*')
+          .eq('id', userId)
+          .maybeSingle();
 
-      if (mounted) {
-        setState(() {
-          _profile = profileResponse;
-          _fullNameController.text = profileResponse['fullName'] ?? '';
-          _cityController.text = profileResponse['city'] ?? '';
-          _ageController.text = profileResponse['age']?.toString() ?? '';
-          _aboutController.text = profileResponse['about'] ?? '';
-          _selectedGender = profileResponse['gender'] ?? 'Male';
-          _selectedLookingFor =
-              profileResponse['lookingFor'] ?? 'Long-term partner';
-          _selectedRelationshipStatus =
-              profileResponse['relationshipStatus'] ?? 'Single';
-          _isLoading = false;
-        });
+      if (doc != null) {
+        final profileResponse = {
+          'id': doc['id'],
+          'fullName': doc['full_name'],
+          'city': doc['city'],
+          'age': doc['age'],
+          'about': doc['about'],
+          'gender': doc['gender'] ?? 'Male',
+          'lookingFor': doc['looking_for'],
+          'relationshipStatus': doc['relationship_status'],
+          'email': doc['email'],
+          'country': doc['country'],
+        };
+
+        if (mounted) {
+          setState(() {
+            _profile = profileResponse;
+            _fullNameController.text = profileResponse['fullName'] ?? '';
+            _cityController.text = profileResponse['city'] ?? '';
+            _ageController.text = profileResponse['age']?.toString() ?? '';
+            _aboutController.text = profileResponse['about'] ?? '';
+            _selectedGender = profileResponse['gender'] ?? 'Male';
+            _selectedLookingFor =
+                profileResponse['lookingFor'] ?? 'Long-term partner';
+            _selectedRelationshipStatus =
+                profileResponse['relationshipStatus'] ?? 'Single';
+            _isLoading = false;
+          });
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -103,23 +116,21 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       final userId = await SessionStore.ensureUserId();
       if (userId == null) return;
 
-      await AppwriteService.databases.updateDocument(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.profilesCollectionId,
-        documentId: userId,
-        data: {
-          'fullName': _fullNameController.text.trim(),
-          'city': _cityController.text.trim(),
-          'age': int.parse(_ageController.text),
-          'about': _aboutController.text.trim(),
-          'gender': _selectedGender,
-          'lookingFor': _selectedLookingFor,
-          'relationshipStatus': _selectedRelationshipStatus,
-          'avatarLetter': _fullNameController.text.trim().isNotEmpty
-              ? _fullNameController.text.trim()[0].toUpperCase()
-              : 'U',
-        },
-      );
+      await SupabaseService.client
+          .from('users')
+          .update({
+            'full_name': _fullNameController.text.trim(),
+            'city': _cityController.text.trim(),
+            'age': int.parse(_ageController.text),
+            'about': _aboutController.text.trim(),
+            'gender': _selectedGender,
+            'looking_for': _selectedLookingFor,
+            'relationship_status': _selectedRelationshipStatus,
+            'avatar_letter': _fullNameController.text.trim().isNotEmpty
+                ? _fullNameController.text.trim()[0].toUpperCase()
+                : 'U',
+          })
+          .eq('id', userId);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

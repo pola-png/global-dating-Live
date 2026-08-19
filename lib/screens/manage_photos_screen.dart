@@ -1,14 +1,12 @@
 import 'dart:typed_data';
-
-import 'package:appwrite/appwrite.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
+import 'package:cached_network_image/cached_network_image.dart';
 
 import '../components/responsive_page.dart';
-import '../config/appwrite_config.dart';
-import '../services/appwrite_service.dart';
+import '../services/supabase_service.dart';
 import '../services/storage_service.dart';
 
 class ManagePhotosScreen extends StatefulWidget {
@@ -35,14 +33,14 @@ class _ManagePhotosScreenState extends State<ManagePhotosScreen> {
       final userId = await SessionStore.ensureUserId();
       if (userId == null) return;
 
-      final doc = await AppwriteService.databases.getDocument(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.profilesCollectionId,
-        documentId: userId,
-      );
+      final doc = await SupabaseService.client
+          .from('users')
+          .select('photos')
+          .eq('id', userId)
+          .maybeSingle();
 
       setState(() {
-        _photos = List<String>.from(doc.data['photos'] ?? []);
+        _photos = List<String>.from(doc?['photos'] ?? []);
         _isLoading = false;
       });
     } catch (e) {
@@ -51,10 +49,10 @@ class _ManagePhotosScreenState extends State<ManagePhotosScreen> {
   }
 
   Future<void> _pickImage() async {
-    if (_photos.length >= 3) {
+    if (_photos.length >= 6) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Maximum 3 photos allowed')),
+          const SnackBar(content: Text('Maximum 6 photos allowed')),
         );
       }
       return;
@@ -85,54 +83,37 @@ class _ManagePhotosScreenState extends State<ManagePhotosScreen> {
       final userId = await SessionStore.ensureUserId();
       if (userId == null) return;
 
-      final extension = _inferExtension(image);
-      final file = await AppwriteService.storage.createFile(
-        bucketId: AppwriteConfig.mediaBucketId,
-        fileId: ID.unique(),
-        file: InputFile.fromBytes(
-          bytes: bytes,
-          filename:
-              '$userId-profile-${DateTime.now().millisecondsSinceEpoch}.$extension',
-        ),
-      );
+      final fileId = await StorageService.uploadPhoto(userId, image);
 
-      final fileId = file.$id;
+      if (fileId != null) {
+        final updatedPhotos = [..._photos, fileId];
+        await SupabaseService.client
+            .from('users')
+            .update({'photos': updatedPhotos})
+            .eq('id', userId);
 
-      final updatedPhotos = [..._photos, fileId];
-      await AppwriteService.databases.updateDocument(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.profilesCollectionId,
-        documentId: userId,
-        data: {'photos': updatedPhotos},
-      );
-
-      await AppwriteService.databases.createDocument(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.postsCollectionId,
-        documentId: ID.unique(),
-        data: {
-          'authorId': userId,
+        await SupabaseService.client.from('posts').insert({
+          'author_id': userId,
           'text': null,
-          'isCentered': false,
-          'createdAt': DateTime.now().toIso8601String(),
-          'reactionsLike': 0,
-          'reactionsHeart': 0,
-          'reactionsLaugh': 0,
+          'is_centered': false,
+          'created_at': DateTime.now().toIso8601String(),
+          'reactions_like': 0,
+          'reactions_heart': 0,
+          'reactions_laugh': 0,
           'type': 'photo_post',
-          'photoPath': fileId,
-          'photoUrl': null,
-        },
-      );
+          'photo_path': fileId,
+        });
 
-      setState(() {
-        _photos = updatedPhotos;
-        _isUploading = false;
-      });
+        setState(() {
+          _photos = updatedPhotos;
+          _isUploading = false;
+        });
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Photo uploaded and posted to feed')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Photo uploaded and posted to feed')),
+          );
+        }
       }
     } catch (e) {
       setState(() => _isUploading = false);
@@ -191,35 +172,19 @@ class _ManagePhotosScreenState extends State<ManagePhotosScreen> {
       final updatedPhotos = List<String>.from(_photos);
       updatedPhotos.removeAt(index);
 
-      await AppwriteService.storage.deleteFile(
-        bucketId: AppwriteConfig.mediaBucketId,
-        fileId: fileId,
-      );
+      await StorageService.deletePhoto(fileId);
 
       // Remove any feed posts that referenced this photo
-      final postsRes = await AppwriteService.databases.listDocuments(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.postsCollectionId,
-        queries: [
-          Query.equal('authorId', userId),
-          Query.equal('photoPath', fileId),
-        ],
-      );
+      await SupabaseService.client
+          .from('posts')
+          .delete()
+          .eq('author_id', userId)
+          .eq('photo_path', fileId);
 
-      for (final doc in postsRes.documents) {
-        await AppwriteService.databases.deleteDocument(
-          databaseId: AppwriteConfig.databaseId,
-          collectionId: AppwriteConfig.postsCollectionId,
-          documentId: doc.$id,
-        );
-      }
-
-      await AppwriteService.databases.updateDocument(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.profilesCollectionId,
-        documentId: userId,
-        data: {'photos': updatedPhotos},
-      );
+      await SupabaseService.client
+          .from('users')
+          .update({'photos': updatedPhotos})
+          .eq('id', userId);
 
       setState(() {
         _photos = updatedPhotos;
@@ -239,101 +204,6 @@ class _ManagePhotosScreenState extends State<ManagePhotosScreen> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Manage Photos'),
-        backgroundColor: Theme.of(context).primaryColor,
-        foregroundColor: Colors.white,
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : ResponsivePage(
-              maxWidth: 1100,
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Upload up to 3 photos (${_photos.length}/3)',
-                    style: const TextStyle(fontSize: 16, color: Colors.grey),
-                  ),
-                  const SizedBox(height: 16),
-                  Expanded(
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        final crossAxisCount = _gridCountForWidth(constraints.maxWidth);
-                        return GridView.builder(
-                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: crossAxisCount,
-                            crossAxisSpacing: 16,
-                            mainAxisSpacing: 16,
-                            childAspectRatio: 0.75,
-                          ),
-                          itemCount: _photos.length + (_photos.length < 3 ? 1 : 0),
-                          itemBuilder: (context, index) {
-                            if (index < _photos.length) {
-                              final photoId = _photos[index];
-                              final photoUrl =
-                                  StorageService.buildFileUrl(photoId);
-                              return Stack(
-                                children: [
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: Image.network(
-                                      photoUrl,
-                                      fit: BoxFit.cover,
-                                      width: double.infinity,
-                                      height: double.infinity,
-                                    ),
-                                  ),
-                                  Positioned(
-                                    top: 8,
-                                    right: 8,
-                                    child: IconButton(
-                                      onPressed: () => _deletePhoto(index),
-                                      icon: const Icon(LucideIcons.trash2),
-                                      style: IconButton.styleFrom(
-                                        backgroundColor: Colors.red,
-                                        foregroundColor: Colors.white,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              );
-                            } else {
-                              return GestureDetector(
-                                onTap: _isUploading ? null : _pickImage,
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    border: Border.all(color: Colors.grey),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: _isUploading
-                                      ? const Center(child: CircularProgressIndicator())
-                                      : const Column(
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            Icon(LucideIcons.plus, size: 48, color: Colors.grey),
-                                            SizedBox(height: 8),
-                                            Text('Add Photo', style: TextStyle(color: Colors.grey)),
-                                          ],
-                                        ),
-                                ),
-                              );
-                            }
-                          },
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-    );
-  }
-
   String _inferExtension(XFile file) {
     final name = file.name.toLowerCase();
     final path = file.path.toLowerCase();
@@ -342,9 +212,129 @@ class _ManagePhotosScreenState extends State<ManagePhotosScreen> {
     return 'jpg';
   }
 
-  int _gridCountForWidth(double width) {
-    if (width > 1000) return 4;
-    if (width > 750) return 3;
-    return 2;
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Scaffold(
+      backgroundColor: colorScheme.surface,
+      appBar: AppBar(
+        title: const Text('Manage Photos'),
+        elevation: 0,
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : ResponsivePage(
+              maxWidth: 800,
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Your Photos (${_photos.length}/6)',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Showcase your personality. Clear, friendly photos get more connections.',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                  const SizedBox(height: 32),
+                  if (_isUploading)
+                    const Card(
+                      child: Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            CircularProgressIndicator(),
+                            SizedBox(width: 16),
+                            Text('Analyzing and uploading photo...'),
+                          ],
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: GridView.builder(
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                        childAspectRatio: 0.75,
+                      ),
+                      itemCount: _photos.length < 6 ? _photos.length + 1 : 6,
+                      itemBuilder: (context, index) {
+                        if (index == _photos.length) {
+                          return InkWell(
+                            onTap: _pickImage,
+                            borderRadius: BorderRadius.circular(16),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: colorScheme.surfaceVariant.withOpacity(0.3),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: colorScheme.outline.withOpacity(0.2),
+                                  style: BorderStyle.solid,
+                                ),
+                              ),
+                              child: const Icon(
+                                LucideIcons.plus,
+                                size: 32,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          );
+                        }
+
+                        final photoPath = _photos[index];
+                        return ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              CachedNetworkImage(
+                                imageUrl: StorageService.buildFileUrl(photoPath),
+                                fit: BoxFit.cover,
+                                placeholder: (context, url) => Container(
+                                  color: colorScheme.surfaceVariant,
+                                  child: const Center(
+                                    child: CircularProgressIndicator(),
+                                  ),
+                                ),
+                                errorWidget: (context, url, error) => Container(
+                                  color: colorScheme.surfaceVariant,
+                                  child: const Icon(LucideIcons.image),
+                                ),
+                              ),
+                              Positioned(
+                                top: 8,
+                                right: 8,
+                                child: InkWell(
+                                  onTap: () => _deletePhoto(index),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: const BoxDecoration(
+                                      color: Colors.black54,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      LucideIcons.trash2,
+                                      size: 16,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+    );
   }
 }

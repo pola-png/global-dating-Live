@@ -7,11 +7,6 @@
 -keep class io.flutter.plugins.**  { *; }
 
 
-
-# Supabase
--keep class io.supabase.** { *; }
--keep class com.supabase.** { *; }
-
 # Image picker
 -keep class io.flutter.plugins.imagepicker.** { *; }
 

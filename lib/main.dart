@@ -7,7 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 
-import 'services/appwrite_service.dart';
+import 'services/supabase_service.dart';
 import 'services/push_registration_service.dart';
 import 'services/admob_service.dart';
 import 'services/google_play_billing_service.dart';
@@ -33,6 +33,10 @@ import 'screens/get_android_app_screen.dart';
 import 'screens/admin_support_screen.dart';
 import 'services/realtime_notification_service.dart';
 
+import 'services/subscription_service.dart';
+import 'screens/paywall_screen.dart';
+import 'screens/splash_screen.dart';
+
 final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
@@ -50,58 +54,11 @@ void main() async {
       DeviceOrientation.portraitDown,
     ]);
   }
-  
-  try {
-    if (kIsWeb) {
-      await Firebase.initializeApp(
-        options: const FirebaseOptions(
-          apiKey: "AIzaSyDGqL7rZxJ5Zx5Zx5Zx5Zx5Zx5Zx5Zx5Z",
-          authDomain: "globaldatingchat.firebaseapp.com",
-          projectId: "globaldatingchat",
-          storageBucket: "globaldatingchat.appspot.com",
-          messagingSenderId: "123456789",
-          appId: "1:123456789:web:abcdef123456789",
-        ),
-      );
-    } else {
-      await Firebase.initializeApp();
-    }
-    if (!kIsWeb) {
-      await AdMobService.initialize();
-    }
-    await GooglePlayBillingService.instance.init();
-    AnalyticsService.instance; // Initialize analytics
-  } catch (e) {
-    debugPrint('Firebase initialization error: $e');
-    // Continue without Firebase on web if it fails
-  }
 
-  // Check connectivity
-  bool hasConnectivity = true;
-  try {
-    final connectivityResult = await Connectivity().checkConnectivity();
-    hasConnectivity = !connectivityResult.contains(ConnectivityResult.none);
-  } catch (e) {
-    debugPrint('Connectivity check error: $e');
-  }
-  final prefs = await SharedPreferences.getInstance();
-  final bool isOfAge = prefs.getBool('is_of_age') ?? false;
+  // Session verification and other network services run in background
+  SessionStore.refresh();
 
-  // Check for existing session
-  bool hasSession = false;
-  try {
-    await SessionStore.refresh();
-    hasSession = SessionStore.userId != null;
-  } catch (e) {
-    debugPrint('Session check error: $e');
-    hasSession = false;
-  }
-
-  runApp(MainApp(
-    isOfAge: isOfAge, 
-    hasSession: hasSession,
-    hasConnectivity: hasConnectivity,
-  ));
+  runApp(const MainApp());
   
   if (!kIsWeb) {
     _startRealtimeNotifications();
@@ -110,28 +67,17 @@ void main() async {
 }
 
 class MainApp extends StatelessWidget {
-  final bool isOfAge;
-  final bool hasSession;
-  final bool hasConnectivity;
-
-  const MainApp({
-    super.key, 
-    required this.isOfAge, 
-    required this.hasSession,
-    required this.hasConnectivity,
-  });
+  const MainApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Global Dating Chat',
+      title: 'Dating Connect',
       navigatorKey: _navigatorKey,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.system,
-      initialRoute: !hasConnectivity 
-          ? '/offline' 
-          : (!isOfAge ? '/age-gate' : (hasSession ? '/home' : '/login')),
+      initialRoute: '/',
       debugShowCheckedModeBanner: false,
       builder: (context, child) {
         final brightness = Theme.of(context).brightness;
@@ -155,9 +101,11 @@ class MainApp extends StatelessWidget {
         );
       },
       routes: {
+        '/': (context) => const SplashScreen(),
         '/age-gate': (context) => const AgeGateScreen(),
         '/register': (context) => const RegistrationScreen(),
         '/login': (context) => const LoginScreen(),
+        '/paywall': (context) => const PaywallScreen(),
         '/home': (context) => const HomeScreen(),
         '/groups': (context) => const GroupsScreen(),
         '/chat': (context) => const ChatListScreen(),
@@ -204,7 +152,7 @@ class MainApp extends StatelessWidget {
         }
         // Fallback for unknown routes
         return MaterialPageRoute(
-          builder: (context) => !isOfAge ? const AgeGateScreen() : (hasSession ? const HomeScreen() : const LoginScreen()),
+          builder: (context) => const SplashScreen(),
         );
       },
     );

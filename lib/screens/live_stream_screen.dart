@@ -1,4 +1,4 @@
-import 'package:appwrite/appwrite.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
@@ -7,9 +7,8 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../components/avatar_widget.dart';
-import '../config/appwrite_config.dart';
 import '../config/livekit_config.dart';
-import '../services/appwrite_service.dart';
+import '../services/supabase_service.dart';
 import '../services/livekit_token_service.dart';
 import '../services/wallet_service.dart';
 import '../services/storage_service.dart';
@@ -29,6 +28,7 @@ class _LiveStreamTabState extends State<LiveStreamTab> with AutomaticKeepAliveCl
   bool _busy = false;
   bool _watchingAds = false;
   Map<String, dynamic>? _myActiveStream;
+  RealtimeChannel? _subscription;
 
   @override
   bool get wantKeepAlive => true;
@@ -40,24 +40,34 @@ class _LiveStreamTabState extends State<LiveStreamTab> with AutomaticKeepAliveCl
     _subscribeRealtime();
   }
 
+  @override
+  void dispose() {
+    if (_subscription != null) {
+      SupabaseService.client.removeChannel(_subscription!);
+    }
+    super.dispose();
+  }
+
   Future<void> _loadSessions() async {
     setState(() => _isLoading = true);
     try {
       final userId = await SessionStore.ensureUserId();
-      final res = await AppwriteService.databases.listDocuments(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.liveStreamsCollectionId,
-        queries: [
-          Query.equal('isLive', true),
-          Query.orderDesc('createdAt'),
-        ],
-      );
-      final sessions = res.documents
-          .map((d) => {
-                ...d.data,
-                'id': d.$id,
-              })
-          .toList();
+      final res = await SupabaseService.client
+          .from('live_streams')
+          .select('*')
+          .eq('is_live', true)
+          .order('created_at', ascending: false);
+
+      final sessions = res.map((d) => {
+        'id': d['id'].toString(),
+        'hostId': d['host_id'],
+        'title': d['title'],
+        'hostName': d['host_name'],
+        'viewerCount': d['viewer_count'],
+        'createdAt': d['created_at'],
+        'isLive': d['is_live'],
+        'liveStreamId': d['live_stream_id'],
+      }).toList();
       
       Map<String, dynamic>? myStream;
       if (userId != null) {
@@ -82,15 +92,16 @@ class _LiveStreamTabState extends State<LiveStreamTab> with AutomaticKeepAliveCl
   }
 
   void _subscribeRealtime() {
-    final sub = AppwriteService.realtime.subscribe([
-      'databases.${AppwriteConfig.databaseId}.collections.${AppwriteConfig.liveStreamsCollectionId}.documents',
-    ]);
-
-    sub.stream.listen((event) {
-      if (event.events.any((e) => e.endsWith('.create') || e.endsWith('.update'))) {
+    if (_subscription != null) return;
+    _subscription = SupabaseService.client.channel('live_streams_updates');
+    _subscription!.onPostgresChanges(
+      event: PostgresChangeEvent.all,
+      schema: 'public',
+      table: 'live_streams',
+      callback: (payload) {
         _loadSessions();
-      }
-    });
+      },
+    ).subscribe();
   }
 
   Future<void> _startLive() async {
@@ -200,26 +211,31 @@ class _LiveStreamTabState extends State<LiveStreamTab> with AutomaticKeepAliveCl
         return;
       }
       
-      final user = await AppwriteService.account.get();
-      final docId = ID.unique();
+      final user = SupabaseService.client.auth.currentUser;
+      if (user == null) return;
+      final docId = DateTime.now().millisecondsSinceEpoch.toString();
       final insert = {
-        'hostId': user.$id,
-        'title': user.name,
-        'hostName': user.name,
-        'viewerCount': 0,
-        'createdAt': DateTime.now().toIso8601String(),
-        'isLive': true,
-        'liveStreamId': docId,
+        'host_id': user.id,
+        'title': user.userMetadata?['full_name'] ?? 'Streamer',
+        'host_name': user.userMetadata?['full_name'] ?? 'Streamer',
+        'viewer_count': 0,
+        'created_at': DateTime.now().toIso8601String(),
+        'is_live': true,
+        'live_stream_id': docId,
       };
       
-      final doc = await AppwriteService.databases.createDocument(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.liveStreamsCollectionId,
-        documentId: docId,
-        data: insert,
-      );
+      final doc = await SupabaseService.client.from('live_streams').insert(insert).select().single();
       
-      final saved = {...doc.data, 'id': doc.$id};
+      final saved = {
+        'id': doc['id'].toString(),
+        'hostId': doc['host_id'],
+        'title': doc['title'],
+        'hostName': doc['host_name'],
+        'viewerCount': doc['viewer_count'],
+        'createdAt': doc['created_at'],
+        'isLive': doc['is_live'],
+        'liveStreamId': doc['live_stream_id'],
+      };
       
       // Update local state immediately
       setState(() {
@@ -273,42 +289,43 @@ class _LiveStreamTabState extends State<LiveStreamTab> with AutomaticKeepAliveCl
       }
       
       const cost = 50;
-      final user = await AppwriteService.account.get();
-      final docId = ID.unique();
+      final user = SupabaseService.client.auth.currentUser;
+      if (user == null) return;
+      final docId = DateTime.now().millisecondsSinceEpoch.toString();
       final insert = {
-        'hostId': user.$id,
-        'title': user.name,
-        'hostName': user.name,
-        'viewerCount': 0,
-        'createdAt': DateTime.now().toIso8601String(),
-        'isLive': true,
-        'liveStreamId': docId,
+        'host_id': user.id,
+        'title': user.userMetadata?['full_name'] ?? 'Streamer',
+        'host_name': user.userMetadata?['full_name'] ?? 'Streamer',
+        'viewer_count': 0,
+        'created_at': DateTime.now().toIso8601String(),
+        'is_live': true,
+        'live_stream_id': docId,
       };
       
-      final doc = await AppwriteService.databases.createDocument(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.liveStreamsCollectionId,
-        documentId: docId,
-        data: insert,
-      );
+      final doc = await SupabaseService.client.from('live_streams').insert(insert).select().single();
       
       final ok = await WalletService.spendCoins(cost);
       if (!ok) {
-        await AppwriteService.databases.deleteDocument(
-          databaseId: AppwriteConfig.databaseId,
-          collectionId: AppwriteConfig.liveStreamsCollectionId,
-          documentId: doc.$id,
-        );
-      if (mounted) {
-        setState(() => _busy = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Need 50 coins to go live.')),
-        );
-      }
+        await SupabaseService.client.from('live_streams').delete().eq('id', doc['id']);
+        if (mounted) {
+          setState(() => _busy = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Need 50 coins to go live.')),
+          );
+        }
         return;
       }
       
-      final saved = {...doc.data, 'id': doc.$id};
+      final saved = {
+        'id': doc['id'].toString(),
+        'hostId': doc['host_id'],
+        'title': doc['title'],
+        'hostName': doc['host_name'],
+        'viewerCount': doc['viewer_count'],
+        'createdAt': doc['created_at'],
+        'isLive': doc['is_live'],
+        'liveStreamId': doc['live_stream_id'],
+      };
       
       if (!mounted) return;
       setState(() => _busy = false);
@@ -420,12 +437,10 @@ class _LiveStreamTabState extends State<LiveStreamTab> with AutomaticKeepAliveCl
     setState(() => _busy = true);
 
     try {
-      await AppwriteService.databases.updateDocument(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.liveStreamsCollectionId,
-        documentId: session['id'] as String,
-        data: {'viewerCount': (session['viewerCount'] ?? 0) + 1},
-      );
+      await SupabaseService.client
+          .from('live_streams')
+          .update({'viewer_count': (session['viewerCount'] ?? 0) + 1})
+          .eq('id', session['id']);
       await _loadSessions();
     } catch (_) {}
 
@@ -479,12 +494,10 @@ class _LiveStreamTabState extends State<LiveStreamTab> with AutomaticKeepAliveCl
       }
 
       try {
-        await AppwriteService.databases.updateDocument(
-          databaseId: AppwriteConfig.databaseId,
-          collectionId: AppwriteConfig.liveStreamsCollectionId,
-          documentId: session['id'] as String,
-          data: {'viewerCount': (session['viewerCount'] ?? 0) + 1},
-        );
+        await SupabaseService.client
+            .from('live_streams')
+            .update({'viewer_count': (session['viewerCount'] ?? 0) + 1})
+            .eq('id', session['id']);
         await _loadSessions();
       } catch (_) {}
 
@@ -612,7 +625,8 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> with TickerProviderStat
   final List<Map<String, dynamic>> _messages = [];
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  RealtimeSubscription? _subscription;
+  RealtimeChannel? _subscription;
+  RealtimeChannel? _coHostRequestSubscription;
   bool _sending = false;
   bool _hasRequestedCoHost = false;
   String? _pendingRequestUserId;
@@ -690,7 +704,12 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> with TickerProviderStat
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _subscription?.close();
+    if (_subscription != null) {
+      SupabaseService.client.removeChannel(_subscription!);
+    }
+    if (_coHostRequestSubscription != null) {
+      SupabaseService.client.removeChannel(_coHostRequestSubscription!);
+    }
     _messageController.dispose();
     _scrollController.dispose();
     _adTimer?.cancel();
@@ -900,15 +919,13 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> with TickerProviderStat
 
   Future<void> _inviteCoHost(String userId, String userName) async {
     try {
-      await AppwriteService.databases.updateDocument(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.liveStreamsCollectionId,
-        documentId: _liveStreamId,
-        data: {
-          'coHostId': userId,
-          'coHostName': userName,
-        },
-      );
+      await SupabaseService.client
+          .from('live_streams')
+          .update({
+            'co_host_id': userId,
+            'co_host_name': userName,
+          })
+          .eq('id', _liveStreamId);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('$userName invited as co-host')),
@@ -925,78 +942,85 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> with TickerProviderStat
 
   Future<void> _loadMessages() async {
     try {
-      final res = await AppwriteService.databases.listDocuments(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.liveMessagesCollectionId,
-        queries: [
-          Query.equal('liveStreamId', _liveStreamId),
-          Query.orderDesc('createdAt'),
-        ],
-      );
+      final res = await SupabaseService.client
+          .from('messages')
+          .select('*')
+          .eq('chat_room_id', _liveStreamId)
+          .order('created_at', ascending: false);
       setState(() {
         _messages
           ..clear()
-          ..addAll(res.documents.map((d) => {
-                ...d.data,
-                'id': d.$id,
+          ..addAll(res.map((d) => {
+                'id': d['id'].toString(),
+                'liveStreamId': d['chat_room_id'],
+                'senderId': d['sender_id'],
+                'senderName': d['sender_name'] ?? 'User',
+                'text': d['text'],
+                'createdAt': d['created_at'],
               }).toList().reversed);
       });
     } catch (_) {}
   }
 
   void _subscribeRealtime() {
-    _subscription = AppwriteService.realtime.subscribe([
-      'databases.${AppwriteConfig.databaseId}.collections.${AppwriteConfig.liveMessagesCollectionId}.documents',
-    ]);
+    _subscription = SupabaseService.client.channel('live_messages_$_liveStreamId');
+    _subscription!.onPostgresChanges(
+      event: PostgresChangeEvent.insert,
+      schema: 'public',
+      table: 'messages',
+      callback: (payload) {
+        final record = payload.newRecord;
+        if (record['chat_room_id']?.toString() != _liveStreamId) return;
 
-    _subscription!.stream.listen((event) {
-      if (!event.events.any((e) => e.endsWith('.create'))) return;
-      final payload = event.payload;
-      if (payload['liveStreamId'] != _liveStreamId) return;
+        final newMsgId = record['id'].toString();
+        if (_messages.any((m) => m['id'] == newMsgId)) return;
 
-      final newMsgId = payload['\$id'];
-      if (_messages.any((m) => m['id'] == newMsgId)) return;
-
-      setState(() {
-        _messages.add({
-          ...payload,
-          'id': newMsgId,
+        setState(() {
+          _messages.add({
+            'id': newMsgId,
+            'liveStreamId': record['chat_room_id'],
+            'senderId': record['sender_id'],
+            'senderName': record['sender_name'] ?? 'User',
+            'text': record['text'],
+            'createdAt': record['created_at'],
+          });
         });
-      });
-      
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_scrollController.hasClients) {
-          _scrollController.animateTo(
-            _scrollController.position.maxScrollExtent,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOut,
-          );
-        }
-      });
-    });
+        
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_scrollController.hasClients) {
+            _scrollController.animateTo(
+              _scrollController.position.maxScrollExtent,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOut,
+            );
+          }
+        });
+      },
+    ).subscribe();
   }
 
   void _subscribeToCoHostRequests() {
-    final requestSub = AppwriteService.realtime.subscribe([
-      'databases.${AppwriteConfig.databaseId}.collections.${AppwriteConfig.liveStreamsCollectionId}.documents',
-    ]);
+    _coHostRequestSubscription = SupabaseService.client.channel('live_cohost_requests_$_liveStreamId');
+    _coHostRequestSubscription!.onPostgresChanges(
+      event: PostgresChangeEvent.update,
+      schema: 'public',
+      table: 'live_streams',
+      callback: (payload) {
+        final record = payload.newRecord;
+        if (record['id']?.toString() != _liveStreamId) return;
 
-    requestSub.stream.listen((event) {
-      if (!event.events.any((e) => e.endsWith('.update'))) return;
-      final payload = event.payload;
-      if (payload['\$id'] != _liveStreamId) return;
-
-      if (mounted) {
-        setState(() {
-          _pendingRequestUserId = payload['coHostRequestId'];
-          _pendingRequestUserName = payload['coHostRequestName'];
-        });
-        
-        if (widget.isHost && _pendingRequestUserId != null) {
-          _showCoHostRequestDialog();
+        if (mounted) {
+          setState(() {
+            _pendingRequestUserId = record['co_host_request_id'];
+            _pendingRequestUserName = record['co_host_request_name'];
+          });
+          
+          if (widget.isHost && _pendingRequestUserId != null) {
+            _showCoHostRequestDialog();
+          }
         }
-      }
-    });
+      },
+    ).subscribe();
   }
 
   Future<void> _requestCoHost() async {
@@ -1006,17 +1030,16 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> with TickerProviderStat
       final userId = await SessionStore.ensureUserId();
       if (userId == null) return;
       
-      final user = await AppwriteService.account.get();
+      final user = SupabaseService.client.auth.currentUser;
+      if (user == null) return;
       
-      await AppwriteService.databases.updateDocument(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.liveStreamsCollectionId,
-        documentId: _liveStreamId,
-        data: {
-          'coHostRequestId': userId,
-          'coHostRequestName': user.name,
-        },
-      );
+      await SupabaseService.client
+          .from('live_streams')
+          .update({
+            'co_host_request_id': userId,
+            'co_host_request_name': user.userMetadata?['full_name'] ?? 'User',
+          })
+          .eq('id', _liveStreamId);
       
       setState(() => _hasRequestedCoHost = true);
     } catch (e) {
@@ -1075,15 +1098,13 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> with TickerProviderStat
 
   Future<void> _clearCoHostRequest() async {
     try {
-      await AppwriteService.databases.updateDocument(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.liveStreamsCollectionId,
-        documentId: _liveStreamId,
-        data: {
-          'coHostRequestId': null,
-          'coHostRequestName': null,
-        },
-      );
+      await SupabaseService.client
+          .from('live_streams')
+          .update({
+            'co_host_request_id': null,
+            'co_host_request_name': null,
+          })
+          .eq('id', _liveStreamId);
       setState(() {
         _pendingRequestUserId = null;
         _pendingRequestUserName = null;
@@ -1101,30 +1122,22 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> with TickerProviderStat
     setState(() => _sending = true);
     
     try {
-      final user = await AppwriteService.account.get();
+      final userDoc = await SupabaseService.client
+          .from('users')
+          .select('full_name, avatar_path')
+          .eq('id', userId)
+          .maybeSingle();
       
-      final profileDoc = await AppwriteService.databases.getDocument(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.profilesCollectionId,
-        documentId: user.$id,
-      );
+      final senderName = userDoc?['full_name'] ?? 'User';
       
-      final photos = profileDoc.data['photos'] as List?;
-      final avatarFileId = (photos != null && photos.isNotEmpty) ? photos.first as String : '';
-      
-      await AppwriteService.databases.createDocument(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.liveMessagesCollectionId,
-        documentId: ID.unique(),
-        data: {
-          'liveStreamId': _liveStreamId,
-          'senderId': user.$id,
-          'senderName': user.name,
-          'senderAvatar': avatarFileId,
-          'text': text,
-          'createdAt': DateTime.now().toIso8601String(),
-        },
-      );
+      await SupabaseService.client.from('messages').insert({
+        'chat_room_id': _liveStreamId,
+        'sender_id': userId,
+        'sender_name': senderName,
+        'text': text,
+        'created_at': DateTime.now().toIso8601String(),
+        'is_read': false,
+      });
 
       _messageController.clear();
     } catch (e) {
@@ -1156,12 +1169,10 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> with TickerProviderStat
   Future<void> _endStream() async {
     if (widget.isHost) {
       try {
-        await AppwriteService.databases.updateDocument(
-          databaseId: AppwriteConfig.databaseId,
-          collectionId: AppwriteConfig.liveStreamsCollectionId,
-          documentId: _liveStreamId,
-          data: {'isLive': false},
-        );
+        await SupabaseService.client
+            .from('live_streams')
+            .update({'is_live': false})
+            .eq('id', _liveStreamId);
       } catch (_) {}
     }
     if (mounted) {

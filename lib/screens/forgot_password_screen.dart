@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
-import '../services/appwrite_service.dart';
+import '../services/supabase_service.dart';
 import '../services/error_handler.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
@@ -29,9 +29,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     setState(() => _isLoading = true);
 
     try {
-      await AppwriteService.account.createRecovery(
-        email: _emailController.text.trim(),
-        url: 'https://globaldatingchat.online/reset-password',
+      await SupabaseService.client.auth.resetPasswordForEmail(
+        _emailController.text.trim(),
+        redirectTo: 'https://globaldatingchat.online/reset-password',
       );
 
       setState(() => _emailSent = true);

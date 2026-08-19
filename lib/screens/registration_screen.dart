@@ -1,12 +1,14 @@
-import 'package:appwrite/appwrite.dart';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:country_picker/country_picker.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:image_picker/image_picker.dart';
 
-import '../config/appwrite_config.dart';
-import '../services/appwrite_service.dart';
+import '../services/supabase_service.dart';
 import '../services/push_registration_service.dart';
 import '../services/error_handler.dart';
+import '../services/storage_service.dart';
 
 class RegistrationScreen extends StatefulWidget {
   const RegistrationScreen({super.key});
@@ -16,25 +18,37 @@ class RegistrationScreen extends StatefulWidget {
 }
 
 class _RegistrationScreenState extends State<RegistrationScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _fullNameController = TextEditingController();
+  int _currentStep = 0;
+  final int _totalSteps = 4;
+
+  // Form Keys
+  final _formKeyStep0 = GlobalKey<FormState>();
+  final _formKeyStep1 = GlobalKey<FormState>();
+  final _formKeyStep2 = GlobalKey<FormState>();
+
+  // Controllers
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _fullNameController = TextEditingController();
   final _ageController = TextEditingController();
-
   final _cityController = TextEditingController();
   final _aboutController = TextEditingController();
-  
+
+  // Selected values
+  String _selectedCountry = '';
   String _selectedGender = 'Male';
-  String _selectedCountry = 'United States';
-  // String _countryCode = '+1'; // Unused field
   String _selectedLookingFor = 'Long-term partner';
   String _selectedRelationshipStatus = 'Single';
   bool _acceptTerms = false;
   bool _isLoading = false;
+  bool _obscurePassword = true;
+
+  // Selected local photos
+  final List<XFile> _selectedPhotos = [];
+  final ImagePicker _picker = ImagePicker();
 
   final List<String> _genderOptions = [
-    'Male', 'Female', 'Non-binary', 'Other', 'Prefer not to say'
+    'Male', 'Female', 'Non-binary', 'Other'
   ];
 
   final List<String> _lookingForOptions = [
@@ -47,11 +61,10 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
   @override
   void dispose() {
-    _fullNameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _fullNameController.dispose();
     _ageController.dispose();
-
     _cityController.dispose();
     _aboutController.dispose();
     super.dispose();
@@ -63,78 +76,155 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       onSelect: (Country country) {
         setState(() {
           _selectedCountry = country.name;
-          // _countryCode = '+${country.phoneCode}';
         });
       },
     );
   }
 
-  Future<void> _createAccount() async {
-    if (!_formKey.currentState!.validate() || !_acceptTerms) {
+  Future<void> _pickImage() async {
+    if (_selectedPhotos.length >= 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Maximum 6 photos allowed')),
+      );
+      return;
+    }
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+      );
+      if (image != null) {
+        setState(() {
+          _selectedPhotos.add(image);
+        });
+      }
+    } catch (e) {
+      if (kDebugMode && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error picking image: $e')),
+        );
+      }
+    }
+  }
+
+  void _removeImage(int index) {
+    setState(() {
+      _selectedPhotos.removeAt(index);
+    });
+  }
+
+  void _nextStep() {
+    if (_currentStep == 0) {
+      if (!_formKeyStep0.currentState!.validate()) return;
+    } else if (_currentStep == 1) {
+      if (!_formKeyStep1.currentState!.validate()) return;
+      if (_selectedCountry.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please select your country')),
+        );
+        return;
+      }
+    } else if (_currentStep == 2) {
+      if (!_formKeyStep2.currentState!.validate()) return;
       if (!_acceptTerms) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Please accept the terms and privacy policy')),
         );
+        return;
       }
+    }
+
+    if (_currentStep < _totalSteps - 1) {
+      setState(() {
+        _currentStep++;
+      });
+    }
+  }
+
+  void _prevStep() {
+    if (_currentStep > 0) {
+      setState(() {
+        _currentStep--;
+      });
+    }
+  }
+
+  Future<void> _createAccount() async {
+    if (_selectedPhotos.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please add at least 1 profile photo')),
+      );
       return;
     }
 
     setState(() => _isLoading = true);
-
     bool sessionCreated = false;
+    String? userId;
 
     try {
-      final account = AppwriteService.account;
-      final databases = AppwriteService.databases;
-
-      final user = await account.create(
-        userId: ID.unique(),
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-        name: _fullNameController.text.trim(),
-      );
-
-      await account.createEmailPasswordSession(
+      // Step 1: Sign up in Auth
+      final response = await SupabaseService.client.auth.signUp(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
 
-      SessionStore.setUserId(user.$id);
+      final user = response.user;
+      if (user == null) {
+        throw Exception('Sign up failed: User details could not be resolved.');
+      }
+      userId = user.id;
+      SessionStore.setUserId(userId);
       sessionCreated = true;
+
+      // Step 2: Upload selected photos
+      final List<String> uploadedPhotoPaths = [];
+      for (final photo in _selectedPhotos) {
+        try {
+          final path = await StorageService.uploadPhoto(userId, photo);
+          if (path != null) {
+            uploadedPhotoPaths.add(path);
+          } else {
+            throw Exception('Failed to upload a photo.');
+          }
+        } catch (uploadError) {
+          if (kDebugMode) {
+            // Show exact error only on debug builds
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Upload failed debug error: $uploadError')),
+              );
+            }
+          }
+        }
+      }
+
+      // Check if we managed to upload at least one photo
+      if (uploadedPhotoPaths.isEmpty) {
+        throw Exception('Failed to upload any photos. Please try again.');
+      }
 
       final fullName = _fullNameController.text.trim();
       final createdAt = DateTime.now().toIso8601String();
 
-      await databases.createDocument(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.profilesCollectionId,
-        documentId: user.$id,
-        data: {
-          'userId': user.$id,
-          'fullName': fullName,
-          'email': _emailController.text.trim(),
-          'age': int.parse(_ageController.text),
-          'country': _selectedCountry,
-          'city': _cityController.text.trim(),
-          'lookingFor': _selectedLookingFor,
-          'relationshipStatus': _selectedRelationshipStatus,
-          'about': _aboutController.text.trim(),
-          'avatarLetter': fullName.isNotEmpty
-              ? fullName[0].toUpperCase()
-              : 'U',
-          'photos': <String>[],
-          'joinedGroups': <String>[],
-          'coinBalance': 0,
-          'isBoosted': false,
-          'boostedUntil': null,
-          'isVerified': false,
-          'createdAt': createdAt,
-          'avatarPath': null,
-        },
-      );
+      // Step 3: Insert user profile document
+      await SupabaseService.client.from('users').insert({
+        'id': userId,
+        'email': _emailController.text.trim(),
+        'full_name': fullName,
+        'age': int.parse(_ageController.text),
+        'country': _selectedCountry,
+        'city': _cityController.text.trim(),
+        'looking_for': _selectedLookingFor,
+        'relationship_status': _selectedRelationshipStatus,
+        'about': _aboutController.text.trim(),
+        'avatar_letter': fullName.isNotEmpty ? fullName[0].toUpperCase() : 'U',
+        'photos': uploadedPhotoPaths,
+        'joined_groups': <String>[],
+        'is_verified': false,
+        'created_at': createdAt,
+      });
 
       if (mounted) {
-        // Auto-register for push notifications
         PushRegistrationService.registerForPush();
         
         ScaffoldMessenger.of(context).showSnackBar(
@@ -167,102 +257,106 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     
     return Scaffold(
       backgroundColor: colorScheme.surface,
+      appBar: AppBar(
+        title: const Text('Create Account'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: _currentStep > 0
+            ? IconButton(
+                icon: const Icon(LucideIcons.arrowLeft),
+                onPressed: _isLoading ? null : _prevStep,
+              )
+            : null,
+      ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 600),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const SizedBox(height: 32),
-                    // Modern hero section
-                    Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [colorScheme.primary, colorScheme.secondary],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
+        child: Column(
+          children: [
+            // Linear progress stepper
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: LinearProgressIndicator(
+                  value: (_currentStep + 1) / _totalSteps,
+                  minHeight: 8,
+                  backgroundColor: colorScheme.surfaceContainerHighest,
+                  valueColor: AlwaysStoppedAnimation<Color>(colorScheme.primary),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Step ${_currentStep + 1} of $_totalSteps',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  Text(
+                    _getStepTitle(),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: colorScheme.primary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 600),
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 350),
+                      transitionBuilder: (child, animation) {
+                        return FadeTransition(
+                          opacity: animation,
+                          child: SlideTransition(
+                            position: Tween<Offset>(
+                              begin: const Offset(0.1, 0),
+                              end: Offset.zero,
+                            ).animate(animation),
+                            child: child,
+                          ),
+                        );
+                      },
+                      child: _buildCurrentStepWidget(),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            // Bottom navigation action buttons
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Row(
+                children: [
+                  if (_currentStep > 0) ...[
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: _isLoading ? null : _prevStep,
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(56),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
                         ),
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                      child: Column(
-                        children: [
-                          Container(
-                            width: 72,
-                            height: 72,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              LucideIcons.heart,
-                              color: Colors.white,
-                              size: 36,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Join Global Dating',
-                            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Connect with people worldwide and find meaningful relationships',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Colors.white.withOpacity(0.9),
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
+                        child: const Text('Back'),
                       ),
                     ),
-                    const SizedBox(height: 32),
-
-                    // Form fields with modern spacing
-                    _buildFormSection('Personal Information', [
-                      _buildFullNameField(),
-                      _buildEmailField(),
-                      _buildPasswordField(),
-                      Row(
-                        children: [
-                          Expanded(child: _buildAgeField()),
-                          const SizedBox(width: 16),
-                          Expanded(child: _buildGenderField()),
-                        ],
-                      ),
-                    ]),
-                    
-                    const SizedBox(height: 24),
-                    
-                    _buildFormSection('Location', [
-                      _buildCountryField(),
-                      _buildCityField(),
-                    ]),
-                    
-                    const SizedBox(height: 24),
-                    
-                    _buildFormSection('Dating Preferences', [
-                      _buildLookingForField(),
-                      _buildRelationshipStatusField(),
-                      _buildAboutField(),
-                    ]),
-                    
-                    const SizedBox(height: 24),
-                    
-                    _buildTermsCheckbox(),
-                    const SizedBox(height: 32),
-                    
-                    // Modern CTA button
-                    FilledButton(
-                      onPressed: _isLoading ? null : _createAccount,
+                    const SizedBox(width: 16),
+                  ],
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: _isLoading
+                          ? null
+                          : (_currentStep == _totalSteps - 1 ? _createAccount : _nextStep),
                       style: FilledButton.styleFrom(
                         minimumSize: const Size.fromHeight(56),
                         shape: RoundedRectangleBorder(
@@ -278,60 +372,93 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                 color: Colors.white,
                               ),
                             )
-                          : const Text(
-                              'Create Account',
-                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                            ),
+                          : Text(_currentStep == _totalSteps - 1 ? 'Finish' : 'Next'),
                     ),
-                    
-                    const SizedBox(height: 24),
-                    
-                    // Login link
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          'Already have an account? ',
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                        TextButton(
-                          onPressed: () => Navigator.pushReplacementNamed(context, '/login'),
-                          child: const Text(
-                            'Sign In',
-                            style: TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                      ],
-                    ),
-                    
-                    const SizedBox(height: 32),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
-          ),
+          ],
         ),
       ),
     );
   }
-  
-  Widget _buildFormSection(String title, List<Widget> fields) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w600,
+
+  String _getStepTitle() {
+    switch (_currentStep) {
+      case 0:
+        return 'Personal Info';
+      case 1:
+        return 'Location';
+      case 2:
+        return 'Preferences';
+      case 3:
+        return 'Photos';
+      default:
+        return '';
+    }
+  }
+
+  Widget _buildCurrentStepWidget() {
+    switch (_currentStep) {
+      case 0:
+        return Form(
+          key: _formKeyStep0,
+          child: Column(
+            key: const ValueKey('step0'),
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildFullNameField(),
+              const SizedBox(height: 16),
+              _buildEmailField(),
+              const SizedBox(height: 16),
+              _buildPasswordField(),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(child: _buildAgeField()),
+                  const SizedBox(width: 16),
+                  Expanded(child: _buildGenderField()),
+                ],
+              ),
+            ],
           ),
-        ),
-        const SizedBox(height: 16),
-        ...fields.map((field) => Padding(
-          padding: const EdgeInsets.only(bottom: 16),
-          child: field,
-        )),
-      ],
-    );
+        );
+      case 1:
+        return Form(
+          key: _formKeyStep1,
+          child: Column(
+            key: const ValueKey('step1'),
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildCountryField(),
+              const SizedBox(height: 16),
+              _buildCityField(),
+            ],
+          ),
+        );
+      case 2:
+        return Form(
+          key: _formKeyStep2,
+          child: Column(
+            key: const ValueKey('step2'),
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildLookingForField(),
+              const SizedBox(height: 16),
+              _buildRelationshipStatusField(),
+              const SizedBox(height: 16),
+              _buildAboutField(),
+              const SizedBox(height: 24),
+              _buildTermsCheckbox(),
+            ],
+          ),
+        );
+      case 3:
+        return _buildPhotosStepWidget();
+      default:
+        return const SizedBox.shrink();
+    }
   }
 
   Widget _buildFullNameField() {
@@ -376,12 +503,24 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   }
 
   Widget _buildPasswordField() {
+    final colorScheme = Theme.of(context).colorScheme;
     return TextFormField(
       controller: _passwordController,
-      obscureText: true,
+      obscureText: _obscurePassword,
       decoration: InputDecoration(
         labelText: 'Password',
         prefixIcon: const Icon(LucideIcons.lock),
+        suffixIcon: IconButton(
+          icon: Icon(
+            _obscurePassword ? LucideIcons.eyeOff : LucideIcons.eye,
+            color: colorScheme.onSurfaceVariant,
+          ),
+          onPressed: () {
+            setState(() {
+              _obscurePassword = !_obscurePassword;
+            });
+          },
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
         ),
@@ -419,6 +558,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
   Widget _buildGenderField() {
     return DropdownButtonFormField<String>(
+      isExpanded: true,
       value: _selectedGender,
       decoration: InputDecoration(
         labelText: 'Gender',
@@ -450,6 +590,12 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
             filled: true,
           ),
           controller: TextEditingController(text: _selectedCountry),
+          validator: (value) {
+            if (_selectedCountry.isEmpty) {
+              return 'Country is required';
+            }
+            return null;
+          },
         ),
       ),
     );
@@ -597,6 +743,95 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
               ),
             ),
           ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPhotosStepWidget() {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Column(
+      key: const ValueKey('step3'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Add Profile Photos',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Please upload at least 1 photo to complete your profile. You can add up to 6 photos.',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 24),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: 6,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+          ),
+          itemBuilder: (context, index) {
+            if (index < _selectedPhotos.length) {
+              final file = _selectedPhotos[index];
+              return Stack(
+                children: [
+                  Positioned.fill(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: kIsWeb
+                          ? Image.network(file.path, fit: BoxFit.cover)
+                          : Image.file(File(file.path), fit: BoxFit.cover),
+                    ),
+                  ),
+                  Positioned(
+                    top: 4,
+                    right: 4,
+                    child: GestureDetector(
+                      onTap: () => _removeImage(index),
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.black54,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          LucideIcons.x,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            } else {
+              return GestureDetector(
+                onTap: _pickImage,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: colorScheme.outlineVariant,
+                      style: BorderStyle.solid,
+                    ),
+                  ),
+                  child: Icon(
+                    LucideIcons.plus,
+                    color: colorScheme.onSurfaceVariant,
+                    size: 32,
+                  ),
+                ),
+              );
+            }
+          },
         ),
       ],
     );

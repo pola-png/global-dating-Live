@@ -1,21 +1,18 @@
 import 'dart:async';
-import 'package:appwrite/appwrite.dart';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../components/create_post.dart';
-import '../components/post_card.dart';
-import '../components/responsive_page.dart';
-import '../config/appwrite_config.dart';
-import '../services/appwrite_service.dart';
-import '../services/admob_service.dart';
-import '../services/push_registration_service.dart';
-import '../services/cache_service.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
-import 'live_stream_screen.dart';
-import '../services/update_service.dart';
+import '../components/responsive_page.dart';
+import '../services/supabase_service.dart';
+import '../services/admob_service.dart';
+import '../services/subscription_service.dart';
+import '../services/storage_service.dart';
+import 'profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -26,497 +23,481 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMixin {
   final ScrollController _scrollController = ScrollController();
-  bool _showPostIcon = false;
-  List<Map<String, dynamic>> _posts = [];
+  List<Map<String, dynamic>> _profiles = [];
+  Map<String, dynamic>? _currentUserProfile;
   bool _isFetching = false;
   bool _fetchCompleted = false;
-  DateTime? _fetchStartTime;
-  final int _initialCount = 6;
-  final Map<int, BannerAd> _bannerAds = {};
-  final Map<int, NativeAd> _nativeAds = {};
-  RealtimeSubscription? _postsSubscription;
+  BannerAd? _bannerAd;
+  bool _adLoaded = false;
 
   @override
   bool get wantKeepAlive => true;
-  
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _initFeed());
-    UpdateService.checkForUpdates(context);
-    _setupRealtimeSubscription();
-    _scrollController.addListener(() {
-      final shouldShow = _scrollController.offset > 50;
-      if (shouldShow != _showPostIcon) {
-        setState(() {
-          _showPostIcon = shouldShow;
-        });
-      }
-      if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
-        _loadMorePosts();
-      }
+    _loadCachedProfiles().then((_) {
+      _initDiscovery();
     });
+    if (!kIsWeb && SubscriptionService.shouldShowGeneralAds) {
+      _loadBannerAd();
+    }
   }
 
-  Future<void> _initFeed() async {
+  Future<void> _loadCachedProfiles() async {
     try {
-      await _loadCachedData();
-    } catch (_) {
-      // ignore cache errors
-    }
-    _refreshFeed();
+      final prefs = await SharedPreferences.getInstance();
+      final cachedData = prefs.getString('cached_profiles');
+      if (cachedData != null) {
+        final List<dynamic> decoded = json.decode(cachedData);
+        if (mounted) {
+          setState(() {
+            _profiles = decoded.map((e) => Map<String, dynamic>.from(e)).toList();
+          });
+        }
+      }
+    } catch (_) {}
   }
 
-  Future<void> _loadCachedData() async {
-    final cachedPosts = await CacheService.getCachedPosts();
-    if (cachedPosts.isNotEmpty) {
-      setState(() {
-        _posts = cachedPosts;
+  void _loadBannerAd() {
+    _bannerAd = AdMobService.createBannerAd()
+      ..load().then((_) {
+        if (mounted) {
+          setState(() {
+            _adLoaded = true;
+          });
+        }
       });
-    }
   }
 
   @override
   void dispose() {
     _scrollController.dispose();
-    _postsSubscription?.close();
-    for (final ad in _bannerAds.values) {
-      ad.dispose();
-    }
-    for (final ad in _nativeAds.values) {
-      ad.dispose();
-    }
+    _bannerAd?.dispose();
     super.dispose();
   }
 
-  Future<void> _refreshFeed() async {
+  Future<void> _initDiscovery() async {
+    final userId = await SessionStore.ensureUserId();
+    if (!mounted) return;
+    if (userId == null) {
+      Navigator.pushReplacementNamed(context, '/login');
+      return;
+    }
+
+    if (!SubscriptionService.hasActiveSubscription) {
+      Navigator.pushReplacementNamed(context, '/paywall');
+      return;
+    }
+
+    await _fetchCurrentUserProfile();
+    await _refreshProfiles();
+  }
+
+  Future<void> _fetchCurrentUserProfile() async {
     try {
-      if (mounted) {
-        setState(() {
-          _isFetching = true;
-          _fetchCompleted = false;
-        });
-      }
-
-      final postsRes = await AppwriteService.databases
-          .listDocuments(
-            databaseId: AppwriteConfig.databaseId,
-            collectionId: AppwriteConfig.postsCollectionId,
-            queries: [Query.orderDesc('createdAt'), Query.limit(_initialCount)],
-          )
-          .timeout(const Duration(seconds: 10));
-
-      final postsList = postsRes.documents.map((doc) => {...doc.data, 'id': doc.$id}).toList();
-
-      if (postsList.isEmpty) {
-        if (mounted) {
-          setState(() {
-            _posts = [];
-            _isFetching = false;
-            _fetchCompleted = true;
-          });
-        }
-        return;
-      }
-
-      final authorIds = postsList
-          .map((p) => p['authorId'] as String?)
-          .where((id) => id != null && id.isNotEmpty)
-          .toSet()
-          .toList();
-
-      final authorsById = <String, Map<String, dynamic>>{};
-      if (authorIds.isNotEmpty) {
-        try {
-          final authorRes = await AppwriteService.databases
-              .listDocuments(
-                databaseId: AppwriteConfig.databaseId,
-                collectionId: AppwriteConfig.profilesCollectionId,
-                queries: [Query.equal('userId', authorIds)],
-              )
-              .timeout(const Duration(seconds: 8));
-
-          for (final doc in authorRes.documents) {
-            final authorMap = {...doc.data, 'id': doc.$id};
-            authorMap['isBoostedActive'] = _isBoostActive(authorMap);
-            authorsById[authorMap['userId'] as String] = authorMap;
-          }
-        } catch (e) {
-          debugPrint('Failed to fetch authors: $e');
+      final userId = await SessionStore.ensureUserId();
+      if (userId != null) {
+        final doc = await SupabaseService.client
+            .from('users')
+            .select('*')
+            .eq('id', userId)
+            .maybeSingle();
+        if (doc != null) {
+          _currentUserProfile = {
+            ...doc,
+            'id': doc['id'],
+            'fullName': doc['full_name'],
+            'lookingFor': doc['looking_for'],
+            'country': doc['country'],
+            'city': doc['city'],
+            'age': doc['age'],
+          };
         }
       }
-
-      for (final post in postsList) {
-        final authorId = post['authorId'] as String?;
-        if (authorId != null && authorsById.containsKey(authorId)) {
-          post['author'] = authorsById[authorId];
-        }
-      }
-
-      if (mounted) {
-        setState(() {
-          _posts = List.from(postsList);
-          _isFetching = false;
-          _fetchCompleted = true;
-        });
-      }
-
-      if (postsList.isNotEmpty) CacheService.cachePosts(postsList);
-      _migrateExistingUserNotifications();
     } catch (e) {
-      debugPrint('Error refreshing feed: $e');
-      if (mounted) {
-        setState(() {
-          _isFetching = false;
-          _fetchCompleted = true;
-        });
-      }
+      debugPrint('Error fetching current user profile: $e');
     }
   }
 
-  void _loadMorePosts() {
-    if (_posts.length >= 100) return;
-
-    AppwriteService.databases.listDocuments(
-      databaseId: AppwriteConfig.databaseId,
-      collectionId: AppwriteConfig.postsCollectionId,
-      queries: [Query.orderDesc('createdAt'), Query.limit(6), Query.offset(_posts.length)],
-    ).then((res) async {
-      if (!mounted) return;
-      final newPosts = res.documents.map((doc) => {...doc.data, 'id': doc.$id}).toList();
-
-      final existingIds = _posts.map((p) => p['id']).toSet();
-      final uniqueNewPosts = newPosts.where((p) => !existingIds.contains(p['id'])).toList();
-
-      if (uniqueNewPosts.isEmpty) return;
-
-      final authorIds = uniqueNewPosts
-          .map((p) => p['authorId'] as String?)
-          .where((id) => id != null && id.isNotEmpty)
-          .toSet()
-          .toList();
-
-      Map<String, Map<String, dynamic>> authorsById = {};
-      if (authorIds.isNotEmpty) {
-        try {
-          final authorRes = await AppwriteService.databases.listDocuments(
-            databaseId: AppwriteConfig.databaseId,
-            collectionId: AppwriteConfig.profilesCollectionId,
-            queries: [Query.equal('userId', authorIds)],
-          );
-
-          for (final doc in authorRes.documents) {
-            final authorMap = {...doc.data, 'id': doc.$id};
-            authorMap['isBoostedActive'] = _isBoostActive(authorMap);
-            authorsById[authorMap['userId'] as String] = authorMap;
-          }
-        } catch (e) {
-          debugPrint('Failed to fetch authors for more posts: $e');
-        }
-      }
-
-      for (final post in uniqueNewPosts) {
-        final authorId = post['authorId'] as String?;
-        if (authorId != null && authorsById.containsKey(authorId)) {
-          post['author'] = authorsById[authorId];
-        }
-      }
-
-      if (mounted) {
-        setState(() {
-          _posts.addAll(uniqueNewPosts);
-        });
-      }
-    }).catchError((error) {
-      debugPrint('Error loading more posts: $error');
-    });
-  }
-
-  void _setupRealtimeSubscription() {
-    try {
-      _postsSubscription = AppwriteService.realtime.subscribe([
-        'databases.${AppwriteConfig.databaseId}.collections.${AppwriteConfig.postsCollectionId}.documents'
-      ]);
-      
-      _postsSubscription!.stream.listen((response) {
-        if (!mounted) return;
-        
-        final eventType = response.events.first;
-        final payload = response.payload;
-        
-        if (eventType.contains('create')) {
-          _handleNewPost(payload);
-        } else if (eventType.contains('update')) {
-          _handlePostUpdate(payload);
-        }
-      });
-    } catch (e) {
-      debugPrint('Failed to setup realtime subscription: $e');
-    }
-  }
-  
-  void _handleNewPost(Map<String, dynamic> postData) async {
-    try {
-      final authorId = postData['authorId'] as String?;
-      if (authorId != null) {
-        final authorDoc = await AppwriteService.databases.getDocument(
-          databaseId: AppwriteConfig.databaseId,
-          collectionId: AppwriteConfig.profilesCollectionId,
-          documentId: authorId,
-        );
-        postData['author'] = <String, dynamic>{...authorDoc.data, 'id': authorDoc.$id};
-      }
-      
+  Future<void> _refreshProfiles() async {
+    if (mounted) {
       setState(() {
-        _posts.insert(0, <String, dynamic>{...postData, 'id': postData['\$id']});
+        _isFetching = true;
+        _fetchCompleted = false;
       });
-    } catch (e) {
-      debugPrint('Error handling new post: $e');
     }
-  }
-  
-  void _handlePostUpdate(Map<String, dynamic> postData) {
-    setState(() {
-      final index = _posts.indexWhere((p) => p['id'] == postData['\$id']);
-      if (index != -1) {
-        _posts[index] = <String, dynamic>{..._posts[index], ...postData};
-      }
-    });
-  }
 
-  Future<void> _migrateExistingUserNotifications() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final migrated = prefs.getBool('notifications_migrated') ?? false;
-      
-      if (!migrated) {
-        final userId = await SessionStore.ensureUserId();
-        if (userId != null) {
-          await PushRegistrationService.forceRegister();
-          await prefs.setBool('notifications_migrated', true);
-        }
+      final currentUserId = await SessionStore.ensureUserId();
+      final res = await SupabaseService.client
+          .from('users')
+          .select('*')
+          .limit(50);
+
+      final list = res.map((row) => {
+        'id': row['id'],
+        'userId': row['id'],
+        'fullName': row['full_name'],
+        'email': row['email'],
+        'age': row['age'],
+        'country': row['country'],
+        'city': row['city'],
+        'lookingFor': row['looking_for'],
+        'relationshipStatus': row['relationship_status'],
+        'about': row['about'],
+        'avatarLetter': row['avatar_letter'],
+        'photos': row['photos'] != null ? List<String>.from(row['photos']) : [],
+        'joinedGroups': row['joined_groups'] != null ? List<String>.from(row['joined_groups']) : [],
+        'isVerified': row['is_verified'],
+        'isBoosted': row['is_boosted'],
+        'boostedUntil': row['boosted_until'],
+        'createdAt': row['created_at'],
+        'avatarPath': row['avatar_path'],
+      }).where((profile) => profile['userId'] != currentUserId).toList();
+
+      // Apply Advanced Matchmaking Algorithm
+      for (final profile in list) {
+        profile['matchScore'] = _calculateMatchScore(profile);
       }
-    } catch (_) {
+
+      // Sort by Match Score descending
+      list.sort((a, b) => (b['matchScore'] as int).compareTo(a['matchScore'] as int));
+
+      // Cache loaded profiles for instant startup next time
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        prefs.setString('cached_profiles', json.encode(list));
+      } catch (_) {}
+
+      if (mounted) {
+        setState(() {
+          _profiles = list;
+          _isFetching = false;
+          _fetchCompleted = true;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error refreshing profiles: $e');
+      if (mounted) {
+        setState(() {
+          _isFetching = false;
+          _fetchCompleted = true;
+        });
+      }
     }
   }
 
-  void _onPostCreated(Map<String, dynamic> newPost) {
-    setState(() {
-      final existingIndex = _posts.indexWhere((p) => p['id'] == newPost['id']);
-      if (existingIndex == -1) {
-        _posts.insert(0, newPost);
-      }
-    });
-  }
+  int _calculateMatchScore(Map<String, dynamic> otherProfile) {
+    if (_currentUserProfile == null) {
+      // Fallback deterministic match score based on user ID lengths
+      return 60 + ((otherProfile['userId']?.toString().length ?? 0) % 35);
+    }
 
-  void _showCreatePostDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: CreatePost(onPostCreated: (post) {
-            _onPostCreated(post);
-            Navigator.pop(context);
-          }),
-        ),
-      ),
-    );
+    int score = 65; // Base compatibility
+
+    // Age comparison (higher score if ages are close)
+    final myAge = _currentUserProfile!['age'] as int? ?? 25;
+    final otherAge = otherProfile['age'] as int? ?? 25;
+    final ageDiff = (myAge - otherAge).abs();
+    if (ageDiff <= 3) {
+      score += 15;
+    } else if (ageDiff <= 6) {
+      score += 8;
+    }
+
+    // Location comparison
+    final myCountry = _currentUserProfile!['country'] as String? ?? '';
+    final otherCountry = otherProfile['country'] as String? ?? '';
+    if (myCountry.isNotEmpty && otherCountry.isNotEmpty && myCountry.toLowerCase() == otherCountry.toLowerCase()) {
+      score += 10;
+      final myCity = _currentUserProfile!['city'] as String? ?? '';
+      final otherCity = otherProfile['city'] as String? ?? '';
+      if (myCity.isNotEmpty && otherCity.isNotEmpty && myCity.toLowerCase() == otherCity.toLowerCase()) {
+        score += 5;
+      }
+    }
+
+    // Match goals / lookingFor status comparison
+    final myGoal = _currentUserProfile!['lookingFor'] as String? ?? '';
+    final otherGoal = otherProfile['lookingFor'] as String? ?? '';
+    if (myGoal.isNotEmpty && otherGoal.isNotEmpty && myGoal.toLowerCase() == otherGoal.toLowerCase()) {
+      score += 5;
+    }
+
+    // Limit maximum to 99% (leaving 100% for the absolute perfect connection)
+    return score > 99 ? 99 : score;
   }
 
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    final showLive = !kIsWeb;
-    
-    return DefaultTabController(
-      length: showLive ? 2 : 1,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Global Dating Chat'),
-          backgroundColor: Theme.of(context).primaryColor,
-          foregroundColor: Colors.white,
-          automaticallyImplyLeading: false,
-          actions: [
-            IconButton(
-              icon: const Icon(LucideIcons.badgeDollarSign, color: Colors.green),
-              tooltip: 'Coins',
-              onPressed: () async {
-                final userId = await SessionStore.ensureUserId();
-                if (!mounted) return;
-                if (userId == null) {
-                  Navigator.pushNamed(context, '/login');
-                } else {
-                  Navigator.pushNamed(context, '/coins');
-                }
-              },
-            ),
-            IconButton(
-              icon: const Icon(LucideIcons.download),
-              tooltip: 'Check Updates',
-              onPressed: () => UpdateService.checkForUpdates(context, showNoUpdateDialog: true),
-            ),
-            IconButton(
-              icon: const Icon(LucideIcons.edit),
-              onPressed: _showPostIcon
-                  ? _showCreatePostDialog
-                  : () {
-                      _scrollController.animateTo(
-                        0,
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeOut,
-                      );
-                    },
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Scaffold(
+      backgroundColor: colorScheme.surface,
+      appBar: AppBar(
+        title: Row(
+          children: [
+            Icon(LucideIcons.heart, color: colorScheme.primary, size: 24),
+            const SizedBox(width: 8),
+            Text(
+              'Dating Connect',
+              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 22, color: colorScheme.onSurface),
             ),
           ],
-          bottom: showLive ? const TabBar(
-            labelColor: Colors.white,
-            unselectedLabelColor: Colors.white70,
-            indicatorColor: Colors.white,
-            tabs: [
-              Tab(text: 'Feed', icon: Icon(LucideIcons.list)),
-              Tab(text: 'Live', icon: Icon(LucideIcons.radio)),
-            ],
-          ) : null,
         ),
-        bottomNavigationBar: _buildBottomNav(),
-        body: showLive
-            ? TabBarView(
-                children: [
-                  _shouldShowLoading() ? _wrapResponsive(_buildLoadingState()) : _buildFeed(),
-                  _buildLiveTab(),
-                ],
-              )
-            : (_shouldShowLoading() ? _wrapResponsive(_buildLoadingState()) : _buildFeed()),
+        backgroundColor: colorScheme.surfaceContainer,
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        actions: [
+          IconButton(
+            icon: const Icon(LucideIcons.sparkles, color: Colors.amberAccent),
+            tooltip: 'Subscription Plan',
+            onPressed: () {
+              Navigator.pushNamed(context, '/paywall');
+            },
+          ),
+        ],
+      ),
+      bottomNavigationBar: _buildBottomNav(),
+      body: SafeArea(
+        child: Column(
+          children: [
+            if (_adLoaded && _bannerAd != null && SubscriptionService.shouldShowGeneralAds)
+              Container(
+                alignment: Alignment.center,
+                width: _bannerAd!.size.width.toDouble(),
+                height: _bannerAd!.size.height.toDouble(),
+                child: AdWidget(ad: _bannerAd!),
+              ),
+            Expanded(
+              child: (_isFetching || !_fetchCompleted) && _profiles.isEmpty
+                  ? Center(child: CircularProgressIndicator(color: colorScheme.primary))
+                  : RefreshIndicator(
+                      onRefresh: _refreshProfiles,
+                      child: _profiles.isEmpty
+                          ? Center(
+                              child: Text(
+                                'No profiles found nearby. Pull to refresh!',
+                                style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 16),
+                              ),
+                            )
+                          : _wrapResponsive(
+                              GridView.builder(
+                                controller: _scrollController,
+                                padding: const EdgeInsets.all(16),
+                                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 2,
+                                  crossAxisSpacing: 14,
+                                  mainAxisSpacing: 14,
+                                  childAspectRatio: 0.72,
+                                ),
+                                itemCount: _profiles.length,
+                                itemBuilder: (context, index) {
+                                  final profile = _profiles[index];
+                                  return _buildProfileGridTile(profile);
+                                },
+                              ),
+                            ),
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildFeed() {
-    final colorScheme = Theme.of(context).colorScheme;
-    return RefreshIndicator(
-      onRefresh: () async {
-        await _refreshFeed();
+  Widget _buildProfileGridTile(Map<String, dynamic> profile) {
+    final name = profile['fullName'] ?? 'User';
+    final age = profile['age'] ?? 18;
+    final city = profile['city'] ?? '';
+    final country = profile['country'] ?? '';
+    final matchScore = profile['matchScore'] as int? ?? 65;
+    final isVerified = profile['isVerified'] == true;
+    final isBoosted = profile['isBoosted'] == true;
+    final photos = profile['photos'] as List<dynamic>? ?? [];
+
+    Widget imageWidget;
+    if (photos.isNotEmpty && photos[0].toString().isNotEmpty) {
+      final fileUrl = StorageService.buildFileUrl(photos[0].toString());
+      imageWidget = CachedNetworkImage(
+        imageUrl: fileUrl,
+        fit: BoxFit.cover,
+        placeholder: (context, url) => Container(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+          child: const Center(
+            child: SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+        ),
+        errorWidget: (context, url, error) => _buildFallbackAvatar(name),
+      );
+    } else {
+      imageWidget = _buildFallbackAvatar(name);
+    }
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ProfileScreen(userId: profile['userId']),
+          ),
+        );
       },
-      child: _wrapResponsive(
-        CustomScrollView(
-          controller: _scrollController,
-          slivers: [
-            SliverToBoxAdapter(
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isBoosted ? Colors.amberAccent.withOpacity(0.5) : Colors.white.withOpacity(0.08),
+            width: isBoosted ? 2.0 : 1.0,
+          ),
+          boxShadow: isBoosted
+              ? [
+                  BoxShadow(
+                    color: Colors.amberAccent.withOpacity(0.1),
+                    blurRadius: 10,
+                    spreadRadius: 1,
+                  )
+                ]
+              : [],
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Profile photo or fallback
+            Positioned.fill(child: imageWidget),
+            // Bottom Gradient Overlay for readability
+            Positioned.fill(
               child: Container(
-                width: double.infinity,
-                margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [colorScheme.primary.withValues(alpha: 0.1), colorScheme.secondary.withValues(alpha: 0.05)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: colorScheme.primary.withValues(alpha: 0.2),
-                  ),
-                ),
-                child: InkWell(
-                  onTap: () async {
-                    final userId = await SessionStore.ensureUserId();
-                    if (!mounted) return;
-                    if (userId == null) {
-                      Navigator.pushNamed(context, '/login');
-                    } else {
-                      Navigator.pushNamed(context, '/fast-match');
-                    }
-                  },
-                  borderRadius: BorderRadius.circular(20),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: colorScheme.primary,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: colorScheme.primary.withValues(alpha: 0.3),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: const Icon(
-                          LucideIcons.rocket,
-                          color: Colors.white,
-                          size: 24,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Fast Matchmaking from Admin',
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Get personal help from an admin to find better matches, faster.',
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: colorScheme.onSurface.withValues(alpha: 0.7),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Icon(
-                        LucideIcons.arrowRight,
-                        color: colorScheme.primary,
-                      ),
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      Colors.black38,
+                      Colors.black87,
                     ],
                   ),
                 ),
               ),
             ),
-            if (!_showPostIcon)
-              SliverToBoxAdapter(
-                child: CreatePost(onPostCreated: _onPostCreated),
-              ),
-            _posts.isEmpty
-                ? const SliverFillRemaining(
-                    child: Center(
-                      child: Text(
-                        'No posts yet. Be the first to share!',
-                        style: TextStyle(fontSize: 16, color: Colors.grey),
+            // Match score badge
+            Positioned(
+              top: 10,
+              left: 10,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.pinkAccent.withOpacity(0.85),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(LucideIcons.heart, color: Colors.white, size: 12),
+                    const SizedBox(width: 4),
+                    Text(
+                      '$matchScore% Match',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                  )
-                : SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        if (kIsWeb) {
-                          if (index >= _posts.length) return null;
-                          return PostCard(post: _posts[index]);
-                        }
-                        
-                        final postIndex = index ~/ 3;
-                        final isAd = index % 3 == 2;
-                        
-                        if (isAd) {
-                          final adIndex = postIndex;
-                          return _buildBannerAd(adIndex);
-                        }
-                        
-                        final actualPostIndex = index - (index ~/ 3);
-                        if (actualPostIndex >= _posts.length) return null;
-                        return PostCard(post: _posts[actualPostIndex]);
-                      },
-                      childCount: kIsWeb ? _posts.length : _posts.length + (_posts.length ~/ 2),
-                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (isBoosted)
+              Positioned(
+                top: 10,
+                right: 10,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: const BoxDecoration(
+                    color: Colors.amber,
+                    shape: BoxShape.circle,
                   ),
+                  child: const Icon(LucideIcons.zap, color: Colors.black, size: 12),
+                ),
+              ),
+            // User details at the bottom
+            Positioned(
+              left: 12,
+              right: 12,
+              bottom: 12,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '$name, $age',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (isVerified)
+                        const Padding(
+                          padding: EdgeInsets.only(left: 4.0),
+                          child: Icon(LucideIcons.checkCircle, color: Colors.blueAccent, size: 14),
+                        ),
+                    ],
+                  ),
+                  if (city.isNotEmpty || country.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        const Icon(LucideIcons.mapPin, color: Colors.white70, size: 12),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            city.isNotEmpty ? '$city, $country' : country,
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 11,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFallbackAvatar(String name) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final letter = name.isNotEmpty ? name[0].toUpperCase() : 'U';
+    return Container(
+      color: colorScheme.surfaceContainerHighest,
+      child: Center(
+        child: Text(
+          letter,
+          style: TextStyle(
+            color: colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+            fontSize: 48,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
     );
@@ -530,130 +511,56 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
     );
   }
 
-  bool _shouldShowLoading() {
-    if (_posts.isNotEmpty) return false;
-    if (_isFetching && !_fetchCompleted) return true;
-    if (_fetchStartTime != null) {
-      final elapsed = DateTime.now().difference(_fetchStartTime!).inSeconds;
-      if (elapsed > 15 && _posts.isEmpty) return true;
-    }
-    return false;
-  }
-
-  bool _isBoostActive(Map<String, dynamic> author) {
-    if (author['isBoosted'] != true) return false;
-    final until = author['boostedUntil'];
-    if (until == null) return true;
-    try {
-      return DateTime.parse(until.toString()).isAfter(DateTime.now());
-    } catch (_) {
-      return true;
-    }
-  }
-
-  Widget _buildLoadingState() {
-    return ListView.builder(
-      controller: _scrollController,
-      itemCount: 5,
-      itemBuilder: (context, index) {
-        return Card(
-          margin: const EdgeInsets.all(8),
-          child: Container(
-            constraints: const BoxConstraints(minHeight: 200),
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[300],
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Container(
-                      width: 120,
-                      height: 16,
-                      color: Colors.grey[300],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Container(
-                  width: double.infinity,
-                  height: 80,
-                  color: Colors.grey[300],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Container(width: 60, height: 20, color: Colors.grey[300]),
-                    const SizedBox(width: 16),
-                    Container(width: 60, height: 20, color: Colors.grey[300]),
-                    const SizedBox(width: 16),
-                    Container(width: 60, height: 20, color: Colors.grey[300]),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   Widget _buildBottomNav() {
+    final colorScheme = Theme.of(context).colorScheme;
     return FutureBuilder<String?>(
       future: SessionStore.ensureUserId(),
       builder: (context, snapshot) {
         final hasSession = snapshot.data != null;
-        
+
         return BottomNavigationBar(
           type: BottomNavigationBarType.fixed,
-          selectedItemColor: Theme.of(context).primaryColor,
-          unselectedItemColor: Colors.grey,
+          backgroundColor: colorScheme.surfaceContainer,
+          selectedItemColor: colorScheme.primary,
+          unselectedItemColor: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
           currentIndex: 0,
           onTap: (index) {
             switch (index) {
               case 0:
                 break;
               case 1:
-                Navigator.pushNamed(context, '/groups');
+                Navigator.pushReplacementNamed(context, '/groups');
                 break;
               case 2:
                 if (hasSession) {
-                  Navigator.pushNamed(context, '/chat');
+                  Navigator.pushReplacementNamed(context, '/chat');
                 } else {
                   Navigator.pushNamed(context, '/login');
                 }
                 break;
               case 3:
                 if (hasSession) {
-                  Navigator.pushNamed(context, '/profile');
+                  Navigator.pushReplacementNamed(context, '/profile');
                 } else {
                   Navigator.pushNamed(context, '/login');
                 }
                 break;
             }
           },
-          items: [
-            const BottomNavigationBarItem(
+          items: const [
+            BottomNavigationBarItem(
               icon: Icon(LucideIcons.home),
               label: 'Home',
             ),
-            const BottomNavigationBarItem(
+            BottomNavigationBarItem(
               icon: Icon(LucideIcons.users),
               label: 'Groups',
             ),
-            const BottomNavigationBarItem(
+            BottomNavigationBarItem(
               icon: Icon(LucideIcons.messageCircle),
               label: 'Chat',
             ),
-            const BottomNavigationBarItem(
+            BottomNavigationBarItem(
               icon: Icon(LucideIcons.user),
               label: 'Profile',
             ),
@@ -662,70 +569,4 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
       },
     );
   }
-  
-  Widget _buildLiveTab() {
-    return FutureBuilder<String?>(
-      future: SessionStore.ensureUserId(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        
-        final hasSession = snapshot.data != null;
-        
-        if (!hasSession) {
-          return _wrapResponsive(
-            Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    LucideIcons.lock,
-                    size: 64,
-                    color: Colors.grey[400],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Authentication Required',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Please log in to access live streaming features',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.grey[600],
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: () => Navigator.pushNamed(context, '/login'),
-                    child: const Text('Log In'),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }
-        
-        return const LiveStreamTab();
-      },
-    );
-  }
-
-  Widget _buildBannerAd(int index) {
-    if (!_bannerAds.containsKey(index)) {
-      final ad = AdMobService.createBannerAd();
-      ad.load();
-      _bannerAds[index] = ad;
-    }
-    
-    return SizedBox(
-      height: 60,
-      child: AdWidget(ad: _bannerAds[index]!),
-    );
-  }
 }
-

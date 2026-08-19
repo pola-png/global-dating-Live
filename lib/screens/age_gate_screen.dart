@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import '../services/supabase_service.dart';
+import '../services/subscription_service.dart';
 
 class AgeGateScreen extends StatelessWidget {
   const AgeGateScreen({super.key});
@@ -10,8 +12,17 @@ class AgeGateScreen extends StatelessWidget {
     if (isOver18) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('is_of_age', true);
+      
+      final hasSession = await SessionStore.isUserLoggedInLocally();
       if (!context.mounted) return;
-      Navigator.of(context).pushReplacementNamed('/home');
+      
+      if (hasSession) {
+        Navigator.of(context).pushReplacementNamed(
+          SubscriptionService.hasActiveSubscription ? '/home' : '/paywall'
+        );
+      } else {
+        Navigator.of(context).pushReplacementNamed('/login');
+      }
     } else {
       if (!context.mounted) return;
       showDialog(
@@ -98,7 +109,7 @@ class AgeGateScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'Global Dating Chat',
+                      'Dating Connect',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         color: Colors.white.withOpacity(0.9),
                         fontWeight: FontWeight.w500,

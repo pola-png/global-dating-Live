@@ -1,5 +1,5 @@
-name: globaldatingchat
-description: "Global Dating Chat - Connect with people worldwide"
+name: dating_connect
+description: "Dating Connect - Connect with people worldwide"
 publish_to: 'none'
 version: 1.0.11+12
 
@@ -9,7 +9,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  appwrite: ^20.3.1
+  supabase_flutter: ^2.8.0
   lucide_icons: ^0.257.0
   country_picker: ^2.0.27
   image_picker: ^1.2.0

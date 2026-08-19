@@ -1,4 +1,4 @@
-import 'package:appwrite/appwrite.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -6,11 +6,11 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../components/report_dialog.dart';
 import '../components/avatar_widget.dart';
 import '../components/responsive_page.dart';
-import '../config/appwrite_config.dart';
-import '../services/appwrite_service.dart';
+import '../services/supabase_service.dart';
 import '../services/admob_service.dart';
 import '../services/storage_service.dart';
 import 'video_call_screen.dart';
+import '../services/subscription_service.dart';
 
 class IndividualChatScreen extends StatefulWidget {
   final String chatRoomId;
@@ -37,6 +37,7 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> with Automa
   bool _isLoadingMore = false;
   int _messageOffset = 0;
   final int _messageLimit = 50;
+  RealtimeChannel? _subscription;
 
   @override
   bool get wantKeepAlive => true;
@@ -60,27 +61,29 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> with Automa
   void dispose() {
     _messageController.dispose();
     _scrollController.dispose();
+    if (_subscription != null) {
+      SupabaseService.client.removeChannel(_subscription!);
+    }
     super.dispose();
   }
 
   Future<void> _loadMessages() async {
     try {
-      final res = await AppwriteService.databases.listDocuments(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.messagesCollectionId,
-        queries: [
-          Query.equal('chatRoomId', widget.chatRoomId),
-          Query.orderDesc('createdAt'),
-          Query.limit(_messageLimit),
-        ],
-      );
+      final res = await SupabaseService.client
+          .from('messages')
+          .select('*')
+          .eq('chat_room_id', widget.chatRoomId)
+          .order('created_at', ascending: false)
+          .limit(_messageLimit);
 
-      final messages = res.documents
-          .map((d) => {
-                ...d.data,
-                'id': d.$id,
-              })
-          .toList();
+      final messages = res.map((d) => {
+        'id': d['id'].toString(),
+        'chatRoomId': d['chat_room_id'],
+        'senderId': d['sender_id'],
+        'text': d['text'],
+        'createdAt': d['created_at'],
+        'isRead': d['is_read'],
+      }).toList();
       messages.sort(
         (a, b) => DateTime.parse(a['createdAt'] as String)
             .compareTo(DateTime.parse(b['createdAt'] as String)),
@@ -117,23 +120,21 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> with Automa
     }
     
     try {
-      final res = await AppwriteService.databases.listDocuments(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.messagesCollectionId,
-        queries: [
-          Query.equal('chatRoomId', widget.chatRoomId),
-          Query.orderDesc('createdAt'),
-          Query.offset(_messageOffset),
-          Query.limit(_messageLimit),
-        ],
-      );
+      final res = await SupabaseService.client
+          .from('messages')
+          .select('*')
+          .eq('chat_room_id', widget.chatRoomId)
+          .order('created_at', ascending: false)
+          .range(_messageOffset, _messageOffset + _messageLimit - 1);
 
-      final olderMessages = res.documents
-          .map((d) => {
-                ...d.data,
-                'id': d.$id,
-              })
-          .toList();
+      final olderMessages = res.map((d) => {
+        'id': d['id'].toString(),
+        'chatRoomId': d['chat_room_id'],
+        'senderId': d['sender_id'],
+        'text': d['text'],
+        'createdAt': d['created_at'],
+        'isRead': d['is_read'],
+      }).toList();
       olderMessages.sort(
         (a, b) => DateTime.parse(a['createdAt'] as String)
             .compareTo(DateTime.parse(b['createdAt'] as String)),
@@ -154,49 +155,44 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> with Automa
   }
 
   void _subscribeToMessages() {
-    final sub = AppwriteService.realtime.subscribe([
-      'databases.${AppwriteConfig.databaseId}.collections.${AppwriteConfig.messagesCollectionId}.documents',
-    ]);
+    _subscription = SupabaseService.client.channel('messages_${widget.chatRoomId}');
+    _subscription!.onPostgresChanges(
+      event: PostgresChangeEvent.insert,
+      schema: 'public',
+      table: 'messages',
+      callback: (payload) {
+        final record = payload.newRecord;
+        if (record['chat_room_id']?.toString() != widget.chatRoomId) return;
 
-    sub.stream.listen((event) async {
-      if (!event.events.any(
-        (e) => e.endsWith('.create'),
-      )) {
-        return;
-      }
+        final newId = record['id'].toString();
+        if (_messages.any((m) => m['id'] == newId)) {
+          return;
+        }
 
-      final data = event.payload['data'] as Map<String, dynamic>?;
-      if (data == null) {
-        return;
-      }
-      if (data['chatRoomId'] != widget.chatRoomId) {
-        return;
-      }
+        final newMessage = {
+          'id': newId,
+          'chatRoomId': record['chat_room_id'],
+          'senderId': record['sender_id'],
+          'text': record['text'],
+          'createdAt': record['created_at'],
+          'isRead': record['is_read'],
+        };
 
-      final newId = event.payload['\$id'] as String;
-      if (_messages.any((m) => m['id'] == newId)) {
-        return;
-      }
-
-      final newMessage = {
-        ...data,
-        'id': newId,
-      };
-
-      if (mounted) {
-        setState(() {
-          final index =
-              _messages.indexWhere((msg) => msg['id'] == 'sending...');
-          if (index != -1) {
-            _messages[index] = newMessage;
-          } else {
-            _messages.add(newMessage);
-          }
-        });
-        _scrollToBottom();
-        _markMessagesAsRead();
-      }
-    });
+        if (mounted) {
+          setState(() {
+            final index =
+                _messages.indexWhere((msg) => msg['id'] == 'sending...');
+            if (index != -1) {
+              _messages[index] = newMessage;
+            } else {
+              _messages.add(newMessage);
+            }
+          });
+          _scrollToBottom();
+          _markMessagesAsRead();
+        }
+      },
+    ).subscribe();
   }
 
   Future<void> _markMessagesAsRead() async {
@@ -204,24 +200,12 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> with Automa
       final userId = await SessionStore.ensureUserId();
       if (userId == null) return;
 
-      final res = await AppwriteService.databases.listDocuments(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.messagesCollectionId,
-        queries: [
-          Query.equal('chatRoomId', widget.chatRoomId),
-          Query.equal('isRead', false),
-          Query.notEqual('senderId', userId),
-        ],
-      );
-
-      for (final doc in res.documents) {
-        await AppwriteService.databases.updateDocument(
-          databaseId: AppwriteConfig.databaseId,
-          collectionId: AppwriteConfig.messagesCollectionId,
-          documentId: doc.$id,
-          data: {'isRead': true},
-        );
-      }
+      await SupabaseService.client
+          .from('messages')
+          .update({'is_read': true})
+          .eq('chat_room_id', widget.chatRoomId)
+          .eq('is_read', false)
+          .neq('sender_id', userId);
     } catch (e) {
       // Ignore errors for read status
     }
@@ -271,32 +255,18 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> with Automa
     _scrollToBottom();
 
     try {
-      final db = AppwriteService.databases;
+      final msgDoc = await SupabaseService.client.from('messages').insert({
+        'chat_room_id': widget.chatRoomId,
+        'sender_id': currentUserId,
+        'text': text,
+        'created_at': createdAt,
+        'is_read': false,
+      }).select().single();
 
-      final msgDoc = await db.createDocument(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.messagesCollectionId,
-        documentId: ID.unique(),
-        data: {
-          'chatRoomId': widget.chatRoomId,
-          'senderId': currentUserId,
-          'text': text,
-          'createdAt': createdAt,
-          'replyToId': _replyingTo?['id'],
-          'isRead': false,
-          'status': 'sent',
-        },
-      );
-
-      await db.updateDocument(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.chatRoomsCollectionId,
-        documentId: widget.chatRoomId,
-        data: {
-          'lastMessageId': msgDoc.$id,
-          'lastActive': createdAt,
-        },
-      );
+      await SupabaseService.client.from('chat_rooms').update({
+        'last_message_id': msgDoc['id'],
+        'last_active': createdAt,
+      }).eq('id', widget.chatRoomId);
 
     } catch (e) {
       if (mounted) {
@@ -383,19 +353,11 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> with Automa
         return;
       }
 
-      await AppwriteService.databases.createDocument(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.blockedUsersCollectionId,
-        documentId: ID.unique(),
-        data: {
-          'blockerId': blockerId,
-          'blockedUserId': widget.otherUser['id'],
-          'createdAt': DateTime.now().toIso8601String(),
-          'reason': null,
-          'isTemporary': null,
-          'unblockDate': null,
-        },
-      );
+      await SupabaseService.client.from('blocked_users').insert({
+        'blocker_id': blockerId,
+        'blocked_id': widget.otherUser['id'],
+        'created_at': DateTime.now().toIso8601String(),
+      });
       
       if (mounted) {
         Navigator.of(context).pop();
@@ -487,70 +449,76 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> with Automa
                 ),
                 child: const Icon(LucideIcons.video, size: 20),
               ),
-              tooltip: 'Video call (30 coins)',
+              tooltip: 'Video Call',
               onPressed: () {
-                showDialog(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    title: Row(
-                      children: [
-                        Icon(
-                          LucideIcons.video,
-                          color: colorScheme.primary,
+                final plan = SubscriptionService.currentPlan;
+                if (plan == SubscriptionPlan.premium || plan == SubscriptionPlan.special) {
+                  showDialog(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      title: Row(
+                        children: [
+                          Icon(
+                            LucideIcons.video,
+                            color: colorScheme.primary,
+                          ),
+                          const SizedBox(width: 8),
+                          const Text('Video Call'),
+                        ],
+                      ),
+                      content: Text(
+                        'Start a video call with ${widget.otherUser['fullName']}?',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: const Text('Cancel'),
                         ),
-                        const SizedBox(width: 8),
-                        const Text('Video Call'),
+                        FilledButton(
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => VideoCallScreen(otherUser: widget.otherUser),
+                              ),
+                            );
+                          },
+                          child: const Text('Call Now'),
+                        ),
                       ],
                     ),
-                    content: Text(
-                      'Start a video call with ${widget.otherUser['fullName']}?\n\nCost: 30 coins\n\nOr watch an ad for free!',
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        child: const Text('Cancel'),
+                  );
+                } else {
+                  showDialog(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
                       ),
-                      if (!kIsWeb)
+                      title: const Text('Premium Feature'),
+                      content: const Text(
+                        'Video calls are only available on the Premium or Special VIP plan.\n\nUpgrade today to access high quality video call features!',
+                      ),
+                      actions: [
                         TextButton(
-                          onPressed: () async {
-                            Navigator.pop(ctx);
-                            final ad = await AdMobService.loadRewardedAd();
-                            if (ad != null) {
-                              final rewarded = await AdMobService.showRewardedAd(ad);
-                              if (rewarded && mounted) {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => VideoCallScreen(otherUser: widget.otherUser),
-                                  ),
-                                );
-                              }
-                            } else if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Ad not available')),
-                              );
-                            }
-                          },
-                          child: const Text('Watch Ad'),
+                          onPressed: () => Navigator.pop(ctx),
+                          child: const Text('Cancel'),
                         ),
-                      FilledButton(
-                        onPressed: () {
-                          Navigator.pop(ctx);
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => VideoCallScreen(otherUser: widget.otherUser),
-                            ),
-                          );
-                        },
-                        child: const Text('Use Coins'),
-                      ),
-                    ],
-                  ),
-                );
+                        ElevatedButton(
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            Navigator.pushNamed(context, '/paywall');
+                          },
+                          child: const Text('Upgrade'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
               },
             ),
           ),
@@ -798,32 +766,7 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> with Automa
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 if (!isCurrentUser) ...[
-                  GestureDetector(
-                    onTap: () {
-                      final userId = message['senderId'];
-                      if (userId != null && userId.isNotEmpty) {
-                        Navigator.pushNamed(
-                          context,
-                          '/profile/$userId',
-                        );
-                      }
-                    },
-                    child: Container(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: colorScheme.primary.withValues(alpha: 0.3),
-                          width: 2,
-                        ),
-                      ),
-                      child: AvatarWidget(
-                        avatarUrl: author['avatarPath'] as String?,
-                        photos: author['photos'] != null ? List<String>.from(author['photos']) : null,
-                        avatarLetter: authorName.isNotEmpty ? authorName[0].toUpperCase() : 'U',
-                        radius: 16,
-                      ),
-                    ),
-                  ),
+                  _buildBubbleAvatar(author, authorName, senderId, colorScheme),
                   const SizedBox(width: 8),
                 ],
                 Flexible(
@@ -949,6 +892,10 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> with Automa
                     ],
                   ),
                 ),
+                if (isCurrentUser) ...[
+                  const SizedBox(width: 8),
+                  _buildBubbleAvatar(author, authorName, currentUserId, colorScheme),
+                ],
               ],
             ),
           ),
@@ -957,15 +904,51 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> with Automa
     );
   }
 
+  Widget _buildBubbleAvatar(Map<String, dynamic> author, String authorName, String? userId, ColorScheme colorScheme) {
+    return GestureDetector(
+      onTap: () {
+        if (userId != null && userId.isNotEmpty) {
+          Navigator.pushNamed(
+            context,
+            '/profile/$userId',
+          );
+        }
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: colorScheme.primary.withValues(alpha: 0.3),
+            width: 2,
+          ),
+        ),
+        child: AvatarWidget(
+          avatarUrl: author['avatarPath'] as String?,
+          photos: author['photos'] != null ? List<String>.from(author['photos']) : null,
+          avatarLetter: authorName.isNotEmpty ? authorName[0].toUpperCase() : 'U',
+          radius: 16,
+        ),
+      ),
+    );
+  }
+
   Future<Map<String, dynamic>?> _getAuthorProfile(String userId) async {
     if (userId.isEmpty) return null;
     try {
-      final doc = await AppwriteService.databases.getDocument(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.profilesCollectionId,
-        documentId: userId,
-      );
-      return {...doc.data, 'id': doc.$id};
+      final doc = await SupabaseService.client
+          .from('users')
+          .select('*')
+          .eq('id', userId)
+          .maybeSingle();
+      if (doc != null) {
+        return {
+          ...doc,
+          'id': doc['id'],
+          'fullName': doc['full_name'],
+          'avatarLetter': doc['avatar_letter'] ?? 'U',
+        };
+      }
+      return null;
     } catch (_) {
       return null;
     }

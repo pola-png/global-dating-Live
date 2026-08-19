@@ -1,15 +1,16 @@
-import 'package:appwrite/appwrite.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../components/avatar_widget.dart';
-import '../config/appwrite_config.dart';
-import '../services/appwrite_service.dart';
+import '../services/supabase_service.dart';
+import '../services/account_deletion_service.dart';
 import '../services/storage_service.dart';
 import '../services/wallet_service.dart';
 import '../services/admob_service.dart';
+import '../services/subscription_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String? userId;
@@ -60,66 +61,67 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
           widget.userId == null ? currentUserId : widget.userId!;
       _isOwnProfile = targetUserId == currentUserId;
 
-      final doc = await AppwriteService.databases.getDocument(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.profilesCollectionId,
-        documentId: targetUserId,
-      );
+      final doc = await SupabaseService.client
+          .from('users')
+          .select('*')
+          .eq('id', targetUserId)
+          .maybeSingle();
+
+      if (doc == null) {
+        final user = SupabaseService.client.auth.currentUser;
+        if (user != null) {
+          final email = user.email ?? '';
+          final fullName = 'New User';
+          await SupabaseService.client.from('users').insert({
+            'id': targetUserId,
+            'email': email,
+            'full_name': fullName,
+            'age': 18,
+            'country': '',
+            'city': '',
+            'looking_for': '',
+            'relationship_status': '',
+            'about': '',
+            'avatar_letter': 'U',
+            'photos': <String>[],
+            'joined_groups': <String>[],
+            'is_verified': false,
+            'created_at': DateTime.now().toIso8601String(),
+          });
+          await _loadProfile();
+          return;
+        }
+      }
+
       final profileResponse = {
-        ...doc.data,
-        'id': doc.$id,
+        'id': doc!['id'],
+        'userId': doc['id'],
+        'fullName': doc['full_name'],
+        'email': doc['email'],
+        'age': doc['age'],
+        'country': doc['country'],
+        'city': doc['city'],
+        'lookingFor': doc['looking_for'],
+        'relationshipStatus': doc['relationship_status'],
+        'about': doc['about'],
+        'avatarLetter': doc['avatar_letter'],
+        'photos': doc['photos'] != null ? List<String>.from(doc['photos']) : [],
+        'joinedGroups': doc['joined_groups'] != null ? List<String>.from(doc['joined_groups']) : [],
+        'isVerified': doc['is_verified'],
+        'isBoosted': doc['is_boosted'],
+        'boostedUntil': doc['boosted_until'],
+        'createdAt': doc['created_at'],
+        'avatarPath': doc['avatar_path'],
       };
 
       if (mounted) {
-        final coins = await WalletService.getBalance();
         setState(() {
           _profile = profileResponse;
           _isLoading = false;
-          _coinBalance = coins;
+          _coinBalance = 0;
         });
       }
     } catch (e) {
-      // If profile document doesn't exist yet, create a minimal one and retry once.
-      if (e is AppwriteException && e.code == 404) {
-        try {
-          final user = await AppwriteService.account.get();
-          final userId = user.$id;
-          final email = user.email;
-          final fullName = user.name.isEmpty ? 'New User' : user.name;
-
-          await AppwriteService.databases.createDocument(
-            databaseId: AppwriteConfig.databaseId,
-            collectionId: AppwriteConfig.profilesCollectionId,
-            documentId: userId,
-            data: {
-              'userId': userId,
-              'email': email,
-              'fullName': fullName,
-              'age': 18,
-              'country': '',
-              'city': '',
-              'lookingFor': '',
-              'relationshipStatus': '',
-              'about': '',
-              'avatarLetter':
-                  fullName.isNotEmpty ? fullName[0].toUpperCase() : 'U',
-              'photos': <String>[],
-              'joinedGroups': <String>[],
-              'coinBalance': 0,
-              'isBoosted': false,
-              'boostedUntil': '',
-              'isVerified': false,
-              'createdAt': DateTime.now().toIso8601String(),
-              'avatarPath': '',
-            },
-          );
-          // Retry load once now that profile exists.
-          await _loadProfile();
-          return;
-        } catch (_) {
-          // Fall through to not-found state.
-        }
-      }
       if (mounted) {
         setState(() => _isLoading = false);
       }
@@ -129,8 +131,38 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
   Future<void> _startChat() async {
     if (_profile == null) return;
 
-    // Show toast for ads requirement on mobile
-    if (!kIsWeb) {
+    final otherUserId = _profile!['id'] as String;
+    final isPaid = SubscriptionService.currentPlan != SubscriptionPlan.none;
+
+    final canChat = await SubscriptionService.canChatWithUser(otherUserId);
+    if (!canChat) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Connection Limit Reached'),
+          content: const Text(
+            'The Basic plan allows chatting with up to 2 connections.\n\nUpgrade to the Standard plan to chat with unlimited partners.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                Navigator.pushNamed(context, '/paywall');
+              },
+              child: const Text('Upgrade'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    // Show toast for ads requirement on mobile only for unpaid users
+    if (!kIsWeb && !isPaid) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('You need to watch ads to start a chat'),
@@ -138,76 +170,49 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
         ),
       );
       
-      // Small delay to show the toast
       await Future.delayed(const Duration(milliseconds: 500));
-    }
-
-    // Show loading indicator
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Row(
-            children: [
-              SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-              ),
-              SizedBox(width: 12),
-              Text('Loading ads...'),
-            ],
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                ),
+                SizedBox(width: 12),
+                Text('Loading ads...'),
+              ],
+            ),
+            duration: Duration(seconds: 3),
           ),
-          duration: Duration(seconds: 3),
-        ),
-      );
+        );
+      }
     }
 
     try {
       final currentUserId = await SessionStore.ensureUserId();
       if (currentUserId == null) return;
 
-      final otherUserId = _profile!['id'] as String;
-      final db = AppwriteService.databases;
+      final existingRooms = await SupabaseService.client
+          .from('chat_rooms')
+          .select('*')
+          .or('and(user1_id.eq.$currentUserId,user2_id.eq.$otherUserId),and(user1_id.eq.$otherUserId,user2_id.eq.$currentUserId)');
 
-      final direct = await db.listDocuments(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.chatRoomsCollectionId,
-        queries: [
-          Query.equal('user1Id', currentUserId),
-          Query.equal('user2Id', otherUserId),
-        ],
-      );
-
-      final inverse = await db.listDocuments(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.chatRoomsCollectionId,
-        queries: [
-          Query.equal('user1Id', otherUserId),
-          Query.equal('user2Id', currentUserId),
-        ],
-      );
-
-      var chatRoomDoc = direct.documents.isNotEmpty
-          ? direct.documents.first
-          : (inverse.documents.isNotEmpty ? inverse.documents.first : null);
-
-      if (chatRoomDoc == null) {
-        chatRoomDoc = await db.createDocument(
-          databaseId: AppwriteConfig.databaseId,
-          collectionId: AppwriteConfig.chatRoomsCollectionId,
-          documentId: ID.unique(),
-          data: {
-            'user1Id': currentUserId,
-            'user2Id': otherUserId,
-            'lastMessageId': null,
-            'lastActive': DateTime.now().toIso8601String(),
-          },
-        );
+      Map<String, dynamic>? chatRoomDoc;
+      if (existingRooms.isNotEmpty) {
+        chatRoomDoc = existingRooms.first;
+      } else {
+        chatRoomDoc = await SupabaseService.client.from('chat_rooms').insert({
+          'user1_id': currentUserId,
+          'user2_id': otherUserId,
+          'last_active': DateTime.now().toIso8601String(),
+        }).select().single();
       }
 
-      final chatRoomId = chatRoomDoc.$id;
+      final chatRoomId = chatRoomDoc['id'].toString();
 
-      // Navigate to chat first
       if (mounted) {
         Navigator.pushNamed(
           context,
@@ -219,8 +224,8 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
         );
       }
 
-      // Show ad after chat is opened (only on mobile)
-      if (!kIsWeb) {
+      // Show ad after chat is opened (only on mobile for unpaid users)
+      if (!kIsWeb && !isPaid) {
         final ad = await AdMobService.loadRewardedAd();
         if (ad != null) {
           await AdMobService.showRewardedAd(ad);
@@ -260,20 +265,17 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
     try {
       final userId = await SessionStore.ensureUserId();
       if (userId != null) {
-        await AppwriteService.databases.updateDocument(
-          databaseId: AppwriteConfig.databaseId,
-          collectionId: AppwriteConfig.profilesCollectionId,
-          documentId: userId,
-          data: {
-            'isBoosted': true,
-            'isVerified': true,
-            'boostedUntil': DateTime.now()
-                .add(const Duration(days: 14))
-                .toIso8601String(),
-          },
-        );
+        await SupabaseService.client
+            .from('users')
+            .update({
+              'is_boosted': true,
+              'is_verified': true,
+              'boosted_until': DateTime.now()
+                  .add(const Duration(days: 14))
+                  .toIso8601String(),
+            })
+            .eq('id', userId);
       }
-      await _refreshCoins();
       await _loadProfile();
       if (!mounted) return;
       setState(() => _isLoading = false);
@@ -305,8 +307,9 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
               : _buildModernProfileContent(),
       bottomNavigationBar: _isOwnProfile ? BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
+        backgroundColor: colorScheme.surfaceContainer,
         selectedItemColor: colorScheme.primary,
-        unselectedItemColor: Colors.grey,
+        unselectedItemColor: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
         currentIndex: 3,
         onTap: (index) {
           switch (index) {
@@ -520,9 +523,15 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                 
                 const SizedBox(height: 32),
                 
-                // Support buttons (before About Me)
+                // Support buttons (before Photo Gallery/About)
                 if (_isOwnProfile) ...[
                   _buildSupportSection(isAdmin),
+                  const SizedBox(height: 24),
+                ],
+                
+                // Photo Gallery (Moved above About Me)
+                if (_isOwnProfile || (_profile!['photos'] != null && (_profile!['photos'] as List).isNotEmpty)) ...[
+                  _buildPhotoGallery(),
                   const SizedBox(height: 24),
                 ],
                 
@@ -533,12 +542,6 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                 
                 // Details card
                 _buildDetailsCard(),
-                
-                const SizedBox(height: 24),
-                
-                // Photo Gallery
-                if (_isOwnProfile || (_profile!['photos'] != null && (_profile!['photos'] as List).isNotEmpty))
-                  _buildPhotoGallery(),
                 
                 if (_isOwnProfile) ...[
                   const SizedBox(height: 24),
@@ -1048,7 +1051,6 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
             Expanded(
               child: OutlinedButton.icon(
                 onPressed: () async {
-                  await AppwriteService.account.deleteSession(sessionId: 'current');
                   SessionStore.clear();
                   if (mounted) {
                     Navigator.pushReplacementNamed(context, '/login');
@@ -1094,18 +1096,9 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                   FilledButton(
                     onPressed: () async {
                       try {
-                        final userId = await SessionStore.ensureUserId();
-                        if (userId != null) {
-                          await AppwriteService.databases.deleteDocument(
-                            databaseId: AppwriteConfig.databaseId,
-                            collectionId: AppwriteConfig.profilesCollectionId,
-                            documentId: userId,
-                          );
-                          await AppwriteService.account.deleteSession(sessionId: 'current');
-                          SessionStore.clear();
-                          if (!mounted) return;
-                          navigator.pushReplacementNamed('/login');
-                        }
+                        await AccountDeletionService.deleteCurrentUserData();
+                        if (!mounted) return;
+                        navigator.pushReplacementNamed('/login');
                       } catch (e) {
                         if (!mounted) return;
                         navigator.pop();

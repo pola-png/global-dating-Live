@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
-import '../services/appwrite_service.dart';
+import '../services/supabase_service.dart';
 import '../services/push_registration_service.dart';
 import '../services/error_handler.dart';
 import 'forgot_password_screen.dart';
@@ -18,6 +18,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
+  bool _obscurePassword = true;
 
   @override
   void dispose() {
@@ -32,38 +33,27 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final account = AppwriteService.account;
-
-      // Check if already logged in
-      try {
-        final user = await account.get();
-        SessionStore.setUserId(user.$id);
-        if (mounted) {
-          Navigator.pushReplacementNamed(context, '/home');
-          return;
-        }
-      } catch (_) {
-        // No existing session, proceed with login
-      }
-
-      await account.createEmailPasswordSession(
+      final response = await SupabaseService.client.auth.signInWithPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
 
-      final user = await account.get();
-      SessionStore.setUserId(user.$id);
-      
-      PushRegistrationService.forceRegister();
+      final user = response.user;
+      if (user != null) {
+        SessionStore.setUserId(user.id);
+        PushRegistrationService.forceRegister();
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Login successful!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        Navigator.pushReplacementNamed(context, '/home');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Login successful!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          Navigator.pushReplacementNamed(context, '/home');
+        }
+      } else {
+        throw Exception('User authentication failed.');
       }
     } catch (e) {
       if (mounted) {
@@ -173,10 +163,21 @@ class _LoginScreenState extends State<LoginScreen> {
                     // Password field
                     TextFormField(
                       controller: _passwordController,
-                      obscureText: true,
+                      obscureText: _obscurePassword,
                       decoration: InputDecoration(
                         labelText: 'Password',
                         prefixIcon: const Icon(LucideIcons.lock),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword ? LucideIcons.eyeOff : LucideIcons.eye,
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscurePassword = !_obscurePassword;
+                            });
+                          },
+                        ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),

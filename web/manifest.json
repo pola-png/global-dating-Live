@@ -1,6 +1,6 @@
 {
-    "name": "Global Dating Chat",
-    "short_name": "Global Dating Chat",
+    "name": "Dating Connect",
+    "short_name": "Dating Connect",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

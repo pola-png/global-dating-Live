@@ -1,11 +1,10 @@
-import 'package:appwrite/appwrite.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
-import '../config/appwrite_config.dart';
 import '../config/admin_config.dart';
-import '../services/appwrite_service.dart';
+import '../services/supabase_service.dart';
 import '../services/storage_service.dart';
 
 class AdminSupportScreen extends StatefulWidget {
@@ -37,13 +36,14 @@ class _AdminSupportScreenState extends State<AdminSupportScreen> with AutomaticK
     }
 
     try {
-      final profileDoc = await AppwriteService.databases.getDocument(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.profilesCollectionId,
-        documentId: userId,
-      );
-      // Check if user is admin by ID or isAdmin field
-      final isAdmin = profileDoc.data['isAdmin'] == true || userId == AdminConfig.adminUserId;
+      final profileDoc = await SupabaseService.client
+          .from('users')
+          .select('*')
+          .eq('id', userId)
+          .maybeSingle();
+
+      final isAdmin = profileDoc != null &&
+          (profileDoc['is_admin'] == true || userId == AdminConfig.adminUserId);
       setState(() => _isAdmin = isAdmin);
       if (isAdmin) {
         _loadSessions();
@@ -57,27 +57,43 @@ class _AdminSupportScreenState extends State<AdminSupportScreen> with AutomaticK
 
   Future<void> _loadSessions() async {
     try {
-      final res = await AppwriteService.databases.listDocuments(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.supportSessionsCollectionId,
-        queries: [
-          Query.equal('type', 'fast_match'),
-          Query.orderDesc('createdAt'),
-        ],
-      );
+      final res = await SupabaseService.client
+          .from('support_sessions')
+          .select('*')
+          .eq('type', 'fast_match')
+          .order('created_at', ascending: false);
 
       final sessions = <Map<String, dynamic>>[];
-      for (final doc in res.documents) {
-        final session = {...doc.data, 'id': doc.$id};
+      for (final doc in res) {
+        final session = {
+          'id': doc['id'].toString(),
+          'userId': doc['user_id'],
+          'chatRoomId': doc['chat_room_id'],
+          'status': doc['status'],
+          'createdAt': doc['created_at'],
+          'type': doc['type'],
+        };
         
         // Load user profile
         try {
-          final userDoc = await AppwriteService.databases.getDocument(
-            databaseId: AppwriteConfig.databaseId,
-            collectionId: AppwriteConfig.profilesCollectionId,
-            documentId: session['userId'],
-          );
-          session['userProfile'] = userDoc.data;
+          final userDoc = await SupabaseService.client
+              .from('users')
+              .select('*')
+              .eq('id', session['userId'])
+              .maybeSingle();
+          if (userDoc != null) {
+            session['userProfile'] = {
+              'id': userDoc['id'],
+              'fullName': userDoc['full_name'],
+              'avatarLetter': userDoc['avatar_letter'] ?? 'U',
+              'age': userDoc['age'],
+              'gender': userDoc['gender'],
+              'city': userDoc['city'],
+              'country': userDoc['country'],
+              'lookingFor': userDoc['looking_for'],
+              'avatarPath': userDoc['avatar_path'],
+            };
+          }
         } catch (_) {}
         
         sessions.add(session);
@@ -94,12 +110,10 @@ class _AdminSupportScreenState extends State<AdminSupportScreen> with AutomaticK
 
   Future<void> _closeSession(String sessionId) async {
     try {
-      await AppwriteService.databases.updateDocument(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.supportSessionsCollectionId,
-        documentId: sessionId,
-        data: {'status': 'closed'},
-      );
+      await SupabaseService.client
+          .from('support_sessions')
+          .update({'status': 'closed'})
+          .eq('id', sessionId);
       _loadSessions();
     } catch (_) {}
   }

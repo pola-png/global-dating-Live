@@ -32,7 +32,7 @@ class PolicyScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const Text(
-              'We collect and store your profile information, messages, and photos to provide our dating service. Your data is stored securely and will not be shared with third parties without your consent.',
+              'We collect and store your profile information, messages, photos, live activity, and basic usage data to provide our dating service. Data is stored securely and may be shared only when needed to run the app, such as Google AdMob.',
               style: TextStyle(fontSize: 16),
             ),
             const SizedBox(height: 16),
@@ -45,6 +45,7 @@ class PolicyScreen extends StatelessWidget {
               '• Profile information (name, age, location)\n'
               '• Photos you upload\n'
               '• Messages and posts\n'
+              '• Live stream and video call activity\n'
               '• Usage data and preferences',
               style: TextStyle(fontSize: 16),
             ),
@@ -71,7 +72,7 @@ class PolicyScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const Text(
-              'You can delete your account at any time from your profile settings. This will permanently remove all your data from our servers.',
+              'You can delete your account at any time from your profile settings. This triggers removal of your account and associated data from our systems subject to legal and safety retention needs.',
               style: TextStyle(fontSize: 16),
             ),
             const SizedBox(height: 24),

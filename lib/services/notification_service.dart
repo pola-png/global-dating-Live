@@ -1,10 +1,10 @@
-import 'package:appwrite/appwrite.dart';
-import '../config/appwrite_config.dart';
-import 'appwrite_service.dart';
+import 'supabase_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class NotificationService {
-  static RealtimeSubscription? _liveStreamSubscription;
+  static RealtimeChannel? _liveStreamSubscription;
   static Function(Map<String, dynamic>)? _onLiveStreamNotification;
+
   /// Send notification to specific user
   static Future<void> sendToUser({
     required String userId,
@@ -13,18 +13,13 @@ class NotificationService {
     Map<String, dynamic>? data,
   }) async {
     try {
-      await AppwriteService.databases.createDocument(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: 'notifications',
-        documentId: ID.unique(),
-        data: {
-          'userId': userId,
-          'title': title,
-          'body': body,
-          'data': data,
-          'timestamp': DateTime.now().toIso8601String(),
-        },
-      );
+      await SupabaseService.client.from('notifications').insert({
+        'user_id': userId,
+        'title': title,
+        'body': body,
+        'data': data,
+        'timestamp': DateTime.now().toIso8601String(),
+      });
     } catch (_) {}
   }
 
@@ -35,17 +30,12 @@ class NotificationService {
     Map<String, dynamic>? data,
   }) async {
     try {
-      await AppwriteService.databases.createDocument(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: 'global_notifications',
-        documentId: ID.unique(),
-        data: {
-          'title': title,
-          'body': body,
-          'data': data,
-          'timestamp': DateTime.now().toIso8601String(),
-        },
-      );
+      await SupabaseService.client.from('global_notifications').insert({
+        'title': title,
+        'body': body,
+        'data': data,
+        'timestamp': DateTime.now().toIso8601String(),
+      });
     } catch (_) {}
   }
 
@@ -55,17 +45,14 @@ class NotificationService {
     required String streamerName,
     required String streamerId,
   }) async {
-    await AppwriteService.databases.createDocument(
-      databaseId: AppwriteConfig.databaseId,
-      collectionId: 'live_stream_notifications',
-      documentId: ID.unique(),
-      data: {
-        'streamId': streamId,
-        'streamerName': streamerName,
-        'streamerId': streamerId,
+    try {
+      await SupabaseService.client.from('live_stream_notifications').insert({
+        'stream_id': streamId,
+        'streamer_name': streamerName,
+        'streamer_id': streamerId,
         'timestamp': DateTime.now().toIso8601String(),
-      },
-    );
+      });
+    } catch (_) {}
   }
 
   /// Subscribe to live stream notifications
@@ -73,20 +60,23 @@ class NotificationService {
     Function(Map<String, dynamic>) onNotification,
   ) {
     _onLiveStreamNotification = onNotification;
-    _liveStreamSubscription = AppwriteService.realtime.subscribe([
-      'databases.${AppwriteConfig.databaseId}.collections.live_stream_notifications.documents'
-    ]);
-    _liveStreamSubscription!.stream.listen((event) {
-      if (event.events.contains('databases.*.collections.*.documents.*.create')) {
-        _onLiveStreamNotification?.call(event.payload);
-      }
-    });
+    _liveStreamSubscription = SupabaseService.client.channel('live_stream_notifications_channel');
+    _liveStreamSubscription!.onPostgresChanges(
+      event: PostgresChangeEvent.insert,
+      schema: 'public',
+      table: 'live_stream_notifications',
+      callback: (payload) {
+        _onLiveStreamNotification?.call(payload.newRecord);
+      },
+    ).subscribe();
   }
 
   /// Unsubscribe from live stream notifications
   static void unsubscribeLiveStreamNotifications() {
-    _liveStreamSubscription?.close();
-    _liveStreamSubscription = null;
+    if (_liveStreamSubscription != null) {
+      SupabaseService.client.removeChannel(_liveStreamSubscription!);
+      _liveStreamSubscription = null;
+    }
     _onLiveStreamNotification = null;
   }
 
@@ -100,19 +90,6 @@ class NotificationService {
       body: postContent.length > 50 
           ? '${postContent.substring(0, 50)}...' 
           : postContent,
-      data: {'type': 'new_post'},
-    );
-  }
-
-  /// Send notification for app announcements
-  static Future<void> sendAnnouncementNotification({
-    required String title,
-    required String message,
-  }) async {
-    await sendToAllUsers(
-      title: title,
-      body: message,
-      data: {'type': 'announcement'},
     );
   }
 }

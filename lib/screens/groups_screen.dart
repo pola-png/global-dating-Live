@@ -1,10 +1,10 @@
-import 'package:appwrite/appwrite.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:country_picker/country_picker.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
-import '../config/appwrite_config.dart';
-import '../services/appwrite_service.dart';
+import '../services/supabase_service.dart';
+import '../services/subscription_service.dart';
 
 class GroupsScreen extends StatefulWidget {
   const GroupsScreen({super.key});
@@ -49,26 +49,22 @@ class _GroupsScreenState extends State<GroupsScreen> with AutomaticKeepAliveClie
         return;
       }
 
-      final db = AppwriteService.databases;
+      final profileDoc = await SupabaseService.client
+          .from('users')
+          .select('joined_groups')
+          .eq('id', userId)
+          .maybeSingle();
 
-      final profileDoc = await db.getDocument(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.profilesCollectionId,
-        documentId: userId,
-      );
+      _joinedGroups = Set<String>.from(
+          profileDoc?['joined_groups'] ?? <String>[]);
 
-      _joinedGroups =
-          Set<String>.from(profileDoc.data['joinedGroups'] ?? <String>[]);
+      final metadataRes = await SupabaseService.client
+          .from('group_metadata')
+          .select('*');
 
-      final metadataRes = await db.listDocuments(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.groupMetadataCollectionId,
-      );
-
-      for (final doc in metadataRes.documents) {
-        final data = doc.data;
-        final slug = data['countrySlug'] as String;
-        final count = data['memberCount'] as int? ?? 0;
+      for (final doc in metadataRes) {
+        final slug = doc['country_slug'] as String;
+        final count = doc['member_count'] as int? ?? 0;
         _groupMetadata[slug] = count;
       }
 
@@ -118,59 +114,64 @@ class _GroupsScreenState extends State<GroupsScreen> with AutomaticKeepAliveClie
   }
 
   Future<void> _joinGroup(Country country) async {
+    final plan = SubscriptionService.currentPlan;
+    if (plan == SubscriptionPlan.none || plan == SubscriptionPlan.basic) {
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Upgrade Required'),
+            content: const Text("Your subscription plan doesn't allow joining groups. Upgrade to a higher plan to have access."),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.pushNamed(context, '/paywall');
+                },
+                child: const Text('Upgrade'),
+              ),
+            ],
+          ),
+        );
+      }
+      return;
+    }
+
     try {
       final userId = await SessionStore.ensureUserId();
       if (userId == null) return;
 
-      final db = AppwriteService.databases;
-
       final slug = _getCountrySlug(country.name);
       final newJoinedGroups = [..._joinedGroups, slug];
 
-      await db.updateDocument(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.profilesCollectionId,
-        documentId: userId,
-        data: {
-          'joinedGroups': newJoinedGroups,
-        },
-      );
+      await SupabaseService.client
+          .from('users')
+          .update({'joined_groups': newJoinedGroups})
+          .eq('id', userId);
 
       final currentCount = _groupMetadata[slug] ?? 0;
 
-      final existing = await db.listDocuments(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.groupMetadataCollectionId,
-        queries: [
-          Query.equal('countrySlug', slug),
-        ],
-      );
+      final existing = await SupabaseService.client
+          .from('group_metadata')
+          .select('*')
+          .eq('country_slug', slug)
+          .maybeSingle();
 
-      if (existing.documents.isNotEmpty) {
-        final doc = existing.documents.first;
-        await db.updateDocument(
-          databaseId: AppwriteConfig.databaseId,
-          collectionId: AppwriteConfig.groupMetadataCollectionId,
-          documentId: doc.$id,
-          data: {
-            'memberCount': currentCount + 1,
-          },
-        );
+      if (existing != null) {
+        await SupabaseService.client
+            .from('group_metadata')
+            .update({'member_count': currentCount + 1})
+            .eq('country_slug', slug);
       } else {
-        await db.createDocument(
-          databaseId: AppwriteConfig.databaseId,
-          collectionId: AppwriteConfig.groupMetadataCollectionId,
-          documentId: ID.unique(),
-          data: {
-            'groupId': DateTime.now().millisecondsSinceEpoch,
-            'groupName': country.name,
-            'countrySlug': slug,
-            'memberCount': currentCount + 1,
-            'createdAt': DateTime.now().toIso8601String(),
-            'description': null,
-            'groupAvatarUrl': null,
-          },
-        );
+        await SupabaseService.client.from('group_metadata').insert({
+          'country_name': country.name,
+          'country_slug': slug,
+          'member_count': currentCount + 1,
+        });
       }
 
       if (mounted) {
@@ -199,14 +200,15 @@ class _GroupsScreenState extends State<GroupsScreen> with AutomaticKeepAliveClie
       backgroundColor: colorScheme.surface,
       appBar: AppBar(
         title: const Text('Country Groups'),
-        backgroundColor: colorScheme.primary,
-        foregroundColor: Colors.white,
+        backgroundColor: colorScheme.surfaceContainer,
+        foregroundColor: colorScheme.onSurface,
         elevation: 0,
       ),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
+        backgroundColor: colorScheme.surfaceContainer,
         selectedItemColor: colorScheme.primary,
-        unselectedItemColor: Colors.grey,
+        unselectedItemColor: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
         currentIndex: 1,
         onTap: (index) {
           switch (index) {
@@ -517,19 +519,27 @@ class _GroupsScreenState extends State<GroupsScreen> with AutomaticKeepAliveClie
                   ],
                 ),
                 child: ClipOval(
-                  child: Image.network(
-                    'https://flagsapi.com/${country.countryCode}/flat/64.png',
+                  child: CachedNetworkImage(
+                    imageUrl: 'https://flagsapi.com/${country.countryCode}/flat/64.png',
                     fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        color: colorScheme.surfaceVariant,
-                        child: Icon(
-                          LucideIcons.flag,
-                          color: colorScheme.onSurfaceVariant,
-                          size: 24,
+                    placeholder: (context, url) => Container(
+                      color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                      child: const Center(
+                        child: SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
                         ),
-                      );
-                    },
+                      ),
+                    ),
+                    errorWidget: (context, url, error) => Container(
+                      color: colorScheme.surfaceContainerHighest,
+                      child: Icon(
+                        LucideIcons.flag,
+                        color: colorScheme.onSurfaceVariant,
+                        size: 24,
+                      ),
+                    ),
                   ),
                 ),
               ),

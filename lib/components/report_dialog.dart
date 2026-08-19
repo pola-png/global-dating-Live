@@ -1,8 +1,7 @@
-import 'package:appwrite/appwrite.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/material.dart';
 
-import '../config/appwrite_config.dart';
-import '../services/appwrite_service.dart';
+import '../services/supabase_service.dart';
 
 class ReportDialog extends StatefulWidget {
   final String reportedUserId;
@@ -86,21 +85,16 @@ class _ReportDialogState extends State<ReportDialog> {
         return;
       }
 
-      await AppwriteService.databases.createDocument(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.reportsCollectionId,
-        documentId: ID.unique(),
-        data: {
-          'reporterId': reporterId,
-          'reportedUserId': widget.reportedUserId,
-          'reportType': _selectedReason,
-          'context': widget.context,
-          'contextId': widget.contextId,
-          'description': _descriptionController.text.trim().isEmpty 
-            ? null : _descriptionController.text.trim(),
-          'createdAt': DateTime.now().toIso8601String(),
-        },
-      );
+      await SupabaseService.client.from('reports').insert({
+        'reporter_id': reporterId,
+        'reported_user_id': widget.reportedUserId,
+        'report_type': _selectedReason,
+        'context': widget.context,
+        'context_id': widget.contextId,
+        'description': _descriptionController.text.trim().isEmpty 
+          ? null : _descriptionController.text.trim(),
+        'created_at': DateTime.now().toIso8601String(),
+      });
       
       if (mounted) {
         Navigator.pop(context);

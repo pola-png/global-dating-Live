@@ -1,4 +1,4 @@
-package worldglobaldating.app
+package datingconnect.app
 
 import android.os.Bundle
 import androidx.core.view.WindowCompat

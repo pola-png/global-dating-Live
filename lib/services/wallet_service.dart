@@ -1,7 +1,5 @@
 import 'package:shared_preferences/shared_preferences.dart';
-
-import '../config/appwrite_config.dart';
-import 'appwrite_service.dart';
+import 'supabase_service.dart';
 
 class WalletService {
   static const _prefsKey = 'wallet_coin_balance';
@@ -11,13 +9,12 @@ class WalletService {
     if (userId == null) return _getLocalBalance();
 
     try {
-      final doc = await AppwriteService.databases.getDocument(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.profilesCollectionId,
-        documentId: userId,
-      );
-      final data = doc.data;
-      final balance = (data['coinBalance'] ?? 0) as int;
+      final doc = await SupabaseService.client
+          .from('users')
+          .select('coin_balance')
+          .eq('id', userId)
+          .maybeSingle();
+      final balance = doc != null ? (doc['coin_balance'] ?? 0) as int : 0;
       await _setLocalBalance(balance);
       return balance;
     } catch (_) {
@@ -35,12 +32,10 @@ class WalletService {
       final currentBalance = await getBalance();
       final newBalance = currentBalance + amount;
 
-      await AppwriteService.databases.updateDocument(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.profilesCollectionId,
-        documentId: userId,
-        data: {'coinBalance': newBalance},
-      );
+      await SupabaseService.client
+          .from('users')
+          .update({'coin_balance': newBalance})
+          .eq('id', userId);
 
       await _setLocalBalance(newBalance);
       return true;
@@ -61,12 +56,10 @@ class WalletService {
     try {
       final newBalance = current - amount;
 
-      await AppwriteService.databases.updateDocument(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.profilesCollectionId,
-        documentId: userId,
-        data: {'coinBalance': newBalance},
-      );
+      await SupabaseService.client
+          .from('users')
+          .update({'coin_balance': newBalance})
+          .eq('id', userId);
 
       await _setLocalBalance(newBalance);
       return true;
