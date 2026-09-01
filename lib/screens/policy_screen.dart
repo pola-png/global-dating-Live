@@ -56,7 +56,7 @@ class PolicyScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Global Dating Chat (datingconnect.app) strictly prohibits Child Sexual Abuse and Exploitation (CSAE) and Child Sexual Abuse Material (CSAM). Any user engaging in or uploading CSAE/CSAM content will be immediately banned and reported to legal authorities and NCMEC.',
+              'Dating Connect / Global Dating Chat (developer: Digiskills Consult) strictly prohibits Child Sexual Abuse and Exploitation (CSAE) and Child Sexual Abuse Material (CSAM). Any user engaging in or uploading CSAE/CSAM content will be immediately banned and reported to legal authorities and NCMEC.',
               style: TextStyle(fontSize: 16),
             ),
             const SizedBox(height: 24),
