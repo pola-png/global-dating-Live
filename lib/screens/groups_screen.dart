@@ -522,6 +522,9 @@ class _GroupsScreenState extends State<GroupsScreen> with AutomaticKeepAliveClie
                   child: CachedNetworkImage(
                     imageUrl: 'https://flagsapi.com/${country.countryCode}/flat/64.png',
                     fit: BoxFit.cover,
+                    // Flag icons are small — 128px is more than sufficient.
+                    memCacheWidth: 128,
+                    memCacheHeight: 128,
                     placeholder: (context, url) => Container(
                       color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                       child: const Center(

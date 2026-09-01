@@ -115,7 +115,7 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
       if (ad == null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to load ad ${i + 1}/${adsRequired}. Try again later.')),
+            SnackBar(content: Text('Failed to load ad ${i + 1}/$adsRequired. Try again later.')),
           );
         }
         break;
@@ -355,14 +355,17 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
                           ),
                           const SizedBox(height: 16),
                           ...[
-                            {'coins': 10, 'id': GooglePlayBillingService.coins10ProductId, 'fallback': '\$0.25'},
-                            {'coins': 30, 'id': GooglePlayBillingService.coins30ProductId, 'fallback': '\$0.60'},
-                            {'coins': 60, 'id': GooglePlayBillingService.coins60ProductId, 'fallback': '\$0.80'},
+                            {'coins': 10, 'id': GooglePlayBillingService.coins10ProductId},
+                            {'coins': 30, 'id': GooglePlayBillingService.coins30ProductId},
+                            {'coins': 60, 'id': GooglePlayBillingService.coins60ProductId},
                           ].map((pkg) {
                             final coinsValue = pkg['coins'] as int;
                             final product = GooglePlayBillingService.instance.productForId(pkg['id'] as String);
                             final isProcessing = _processingCoins.contains(coinsValue);
-                            final priceText = product?.price ?? pkg['fallback'] as String;
+                            // Product not yet loaded from Play Store — disable
+                            // the button so the user cannot purchase before
+                            // the price is confirmed (avoids currency mismatch).
+                            final loadedProduct = product; // promotes to non-nullable below
 
                             return Container(
                               margin: const EdgeInsets.only(bottom: 8),
@@ -388,19 +391,33 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
                                           ),
                                         ),
                                         const SizedBox(height: 2),
-                                        Text(
-                                          priceText,
-                                          style: TextStyle(
-                                            color: colorScheme.onSurfaceVariant,
-                                            fontSize: 12,
+                                        // Show Play Store price or a loading
+                                        // indicator — never show a hardcoded
+                                        // price when billing is available.
+                                        if (loadedProduct != null)
+                                          Text(
+                                            loadedProduct.price,
+                                            style: TextStyle(
+                                              color: colorScheme.onSurfaceVariant,
+                                              fontSize: 12,
+                                            ),
+                                          )
+                                        else
+                                          const SizedBox(
+                                            height: 12,
+                                            width: 12,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 1.5,
+                                            ),
                                           ),
-                                        ),
                                       ],
                                     ),
                                   ),
                                   const SizedBox(width: 8),
                                   FilledButton(
-                                    onPressed: isProcessing ? null : () => _buyCoins(coinsValue),
+                                    onPressed: (isProcessing || loadedProduct == null)
+                                        ? null
+                                        : () => _buyCoins(coinsValue),
                                     style: FilledButton.styleFrom(
                                       backgroundColor: colorScheme.primary,
                                       minimumSize: const Size(84, 36),

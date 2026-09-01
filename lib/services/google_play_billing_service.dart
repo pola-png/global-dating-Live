@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'subscription_service.dart';
 import 'wallet_service.dart';
 
 class GooglePlayBillingService {
@@ -16,11 +17,23 @@ class GooglePlayBillingService {
   static const String coins60ProductId = 'coins_60';
   static const String fastMatchProductId = 'fast_match_unlock';
 
+  // Subscription product IDs — must match exactly what is configured in
+  // Google Play Console under your app's Subscriptions section.
+  static const String subBasicProductId = 'sub_basic';
+  static const String subStandardProductId = 'sub_standard';
+  static const String subPremiumProductId = 'sub_premium';
+  static const String subSpecialProductId = 'sub_special';
+
   static const Set<String> _productIds = {
     coins10ProductId,
     coins30ProductId,
     coins60ProductId,
     fastMatchProductId,
+    // Subscriptions
+    subBasicProductId,
+    subStandardProductId,
+    subPremiumProductId,
+    subSpecialProductId,
   };
 
   final InAppPurchase _iap = InAppPurchase.instance;
@@ -88,6 +101,53 @@ class GooglePlayBillingService {
         await prefs.setBool('fast_match_paid', true);
       },
     );
+  }
+
+  /// Purchase a subscription plan through Google Play.
+  /// [productId] must be one of the `sub_*` constants above.
+  /// On successful delivery, records the plan via [SubscriptionService].
+  Future<bool> buySubscription(String productId) async {
+    final plan = _subscriptionPlanForProductId(productId);
+    if (plan == null) return false;
+
+    return _buyNonConsumable(
+      productId: productId,
+      onDelivered: () async {
+        await SubscriptionService.upgradePlan(plan);
+      },
+    );
+  }
+
+  /// Maps a subscription product ID back to the [SubscriptionPlan] enum value.
+  static SubscriptionPlan? _subscriptionPlanForProductId(String productId) {
+    switch (productId) {
+      case subBasicProductId:
+        return SubscriptionPlan.basic;
+      case subStandardProductId:
+        return SubscriptionPlan.standard;
+      case subPremiumProductId:
+        return SubscriptionPlan.premium;
+      case subSpecialProductId:
+        return SubscriptionPlan.special;
+      default:
+        return null;
+    }
+  }
+
+  /// Returns the Play Store-sourced product ID for a given [SubscriptionPlan].
+  static String? productIdForSubscriptionPlan(SubscriptionPlan plan) {
+    switch (plan) {
+      case SubscriptionPlan.basic:
+        return subBasicProductId;
+      case SubscriptionPlan.standard:
+        return subStandardProductId;
+      case SubscriptionPlan.premium:
+        return subPremiumProductId;
+      case SubscriptionPlan.special:
+        return subSpecialProductId;
+      default:
+        return null;
+    }
   }
 
   Future<bool> restoreFastMatch() async {

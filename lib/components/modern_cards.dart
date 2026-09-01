@@ -107,6 +107,9 @@ class ModernProfileCard extends StatelessWidget {
                   ? CachedNetworkImage(
                       imageUrl: imageUrl!,
                       fit: BoxFit.cover,
+                      // Cap bitmap decode width to 600px — more than sufficient
+                      // for a card that takes up at most half the screen width.
+                      memCacheWidth: 600,
                       placeholder: (context, url) => Container(
                         color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                         child: const Center(

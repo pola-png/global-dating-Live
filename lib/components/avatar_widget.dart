@@ -32,10 +32,16 @@ class AvatarWidget extends StatelessWidget {
             backgroundImage: (photos != null && photos!.isNotEmpty)
                 ? CachedNetworkImageProvider(
                     StorageService.buildFileUrl(photos!.first),
+                    // Decode at 2× the max displayed size (radius * 2 * 2).
+                    // For a radius=25 avatar that's 100px — we cap at 200px.
+                    maxWidth: (radius * 4).ceil(),
+                    maxHeight: (radius * 4).ceil(),
                   )
                 : (avatarUrl != null && avatarUrl!.isNotEmpty
                     ? CachedNetworkImageProvider(
                         StorageService.getAvatarUrl(avatarUrl, avatarLetter),
+                        maxWidth: (radius * 4).ceil(),
+                        maxHeight: (radius * 4).ceil(),
                       )
                     : null),
             child: (photos == null || photos!.isEmpty) && (avatarUrl == null || avatarUrl!.isEmpty)

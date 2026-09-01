@@ -57,6 +57,9 @@ class _ImageDetailScreenState extends State<ImageDetailScreen> {
                   child: CachedNetworkImage(
                     imageUrl: widget.imageUrl,
                     fit: BoxFit.contain,
+                    // Full-screen viewer — 1080px is sufficient for all current
+                    // Android screen resolutions while avoiding huge allocations.
+                    memCacheWidth: 1080,
                     placeholder: (context, url) => const Center(
                       child: CircularProgressIndicator(),
                     ),

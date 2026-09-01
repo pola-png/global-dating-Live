@@ -1,4 +1,3 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -136,28 +135,90 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
 
     final canChat = await SubscriptionService.canChatWithUser(otherUserId);
     if (!canChat) {
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Connection Limit Reached'),
-          content: const Text(
-            'The Basic plan allows chatting with up to 2 connections.\n\nUpgrade to the Standard plan to chat with unlimited partners.',
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Connection Limit Reached'),
+            content: const Text(
+              'The Basic plan allows chatting with up to 5 connections.\n\n'
+              'You can upgrade to the Standard plan to chat with unlimited partners, '
+              'or spend 10 coins to unlock this specific connection.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  final balance = await WalletService.getBalance();
+                  if (balance >= SubscriptionService.coinCostPerConnection) {
+                    final spent = await WalletService.spendCoins(SubscriptionService.coinCostPerConnection);
+                    if (spent) {
+                      await SubscriptionService.unlockConnectionWithCoins(otherUserId);
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Successfully unlocked connection with 10 coins!'),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                        // Trigger start chat again since it's now unlocked
+                        _startChat();
+                      }
+                    } else {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Failed to process coin deduction.'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    }
+                  } else {
+                    if (mounted) {
+                      showDialog(
+                        context: context,
+                        builder: (ctx2) => AlertDialog(
+                          title: const Text('Insufficient Coins'),
+                          content: Text(
+                            'You need 10 coins to unlock this connection, but only have $balance coins.\n\n'
+                            'Earn coins by watching ads or buy coin packs.',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx2),
+                              child: const Text('Cancel'),
+                            ),
+                            ElevatedButton(
+                              onPressed: () {
+                                Navigator.pop(ctx2);
+                                Navigator.pushNamed(context, '/coin_purchase');
+                              },
+                              child: const Text('Get Coins'),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+                  }
+                },
+                child: const Text('Spend 10 Coins'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  Navigator.pushNamed(context, '/paywall');
+                },
+                child: const Text('Upgrade'),
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                Navigator.pushNamed(context, '/paywall');
-              },
-              child: const Text('Upgrade'),
-            ),
-          ],
-        ),
-      );
+        );
+      }
       return;
     }
 
@@ -968,6 +1029,8 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                         child: CachedNetworkImage(
                           imageUrl: photoUrl,
                           fit: BoxFit.cover,
+                          // Photo grid thumbnails — cap at 400px wide.
+                          memCacheWidth: 400,
                           placeholder: (context, url) => Container(
                             color: Theme.of(context).colorScheme.surfaceContainerHighest,
                             child: Icon(
@@ -1142,6 +1205,10 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                   child: CachedNetworkImage(
                     imageUrl: photoUrl,
                     fit: BoxFit.contain,
+                    // Full-screen viewer — allow up to 1080px wide so quality
+                    // is preserved while still avoiding huge bitmap allocations
+                    // from very high-res originals.
+                    memCacheWidth: 1080,
                   ),
                 );
               },

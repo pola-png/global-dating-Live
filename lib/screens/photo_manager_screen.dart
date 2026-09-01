@@ -240,6 +240,8 @@ class _PhotoManagerScreenState extends State<PhotoManagerScreen> {
               width: double.infinity,
               height: double.infinity,
               fit: BoxFit.cover,
+              // Grid photo thumbnails — cap at 400px to reduce memory usage.
+              memCacheWidth: 400,
               placeholder: (context, url) => Container(
                 color: Colors.grey[300],
                 child: const Center(

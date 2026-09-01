@@ -296,6 +296,8 @@ class _ManagePhotosScreenState extends State<ManagePhotosScreen> {
                               CachedNetworkImage(
                                 imageUrl: StorageService.buildFileUrl(photoPath),
                                 fit: BoxFit.cover,
+                                // Manage-photos grid thumbnails — cap at 400px.
+                                memCacheWidth: 400,
                                 placeholder: (context, url) => Container(
                                   color: colorScheme.surfaceVariant,
                                   child: const Center(

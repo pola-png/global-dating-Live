@@ -17,7 +17,7 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace = "datingconnect.app"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -66,5 +66,9 @@ flutter {
 
 dependencies {
     implementation("androidx.multidex:multidex:2.0.1")
-    implementation("androidx.activity:activity-ktx:1.9.0")
+    // activity-ktx 1.9+ provides the stable enableEdgeToEdge() API which
+    // replaces the deprecated WindowCompat.setDecorFitsSystemWindows().
+    implementation("androidx.activity:activity-ktx:1.10.1")
+    // SplashScreen compat library for proper API-31 splash screen support.
+    implementation("androidx.core:core-splashscreen:1.0.1")
 }

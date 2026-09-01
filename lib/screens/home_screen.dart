@@ -325,6 +325,9 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
       imageWidget = CachedNetworkImage(
         imageUrl: fileUrl,
         fit: BoxFit.cover,
+        // Swipe cards are full-width — cap at 800px to avoid loading
+        // full-resolution images into memory.
+        memCacheWidth: 800,
         placeholder: (context, url) => Container(
           color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
           child: const Center(

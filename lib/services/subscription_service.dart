@@ -97,6 +97,10 @@ class SubscriptionService {
     return true;
   }
 
+  static const int basicConnectionLimit = 5;
+  static const int coinCostPerConnection = 10;
+  static const String _unlockedConnectionsKey = 'unlocked_connections_list';
+
   // Check if a paid subscription hides ads on general screens.
   static bool get shouldShowGeneralAds {
     return _currentPlan == SubscriptionPlan.none;
@@ -107,10 +111,33 @@ class SubscriptionService {
     return _currentPlan != SubscriptionPlan.none;
   }
 
-  // Basic plan allows chatting with up to 2 unique connections.
+  /// Checks if a connection has been unlocked using coins.
+  static Future<bool> isConnectionUnlockedWithCoins(String otherUserId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final list = prefs.getStringList(_unlockedConnectionsKey) ?? [];
+    return list.contains(otherUserId);
+  }
+
+  /// Unlocks a connection using coins.
+  static Future<bool> unlockConnectionWithCoins(String otherUserId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final list = prefs.getStringList(_unlockedConnectionsKey) ?? [];
+    if (!list.contains(otherUserId)) {
+      list.add(otherUserId);
+      await prefs.setStringList(_unlockedConnectionsKey, list);
+    }
+    return true;
+  }
+
+  // Basic plan allows chatting with up to 5 unique connections, or more if unlocked with coins.
   static Future<bool> canChatWithUser(String otherUserId) async {
     if (_currentPlan == SubscriptionPlan.none) return false;
     if (_currentPlan != SubscriptionPlan.basic) return true;
+
+    // Check if this connection was already unlocked using coins
+    if (await isConnectionUnlockedWithCoins(otherUserId)) {
+      return true;
+    }
 
     try {
       final userId = await SessionStore.ensureUserId();
@@ -131,7 +158,7 @@ class SubscriptionService {
         return true;
       }
 
-      return activePartners.length < 2;
+      return activePartners.length < basicConnectionLimit;
     } catch (_) {
       return true; // Fallback in case of network issue
     }
