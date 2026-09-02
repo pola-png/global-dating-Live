@@ -92,7 +92,7 @@ class PolicyScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const Text(
-              'For questions or concerns about privacy, please contact us at globaldatingchat@gmail.com',
+              'For questions or concerns about privacy, please contact us at ubongp.udoka@gmail.com',
               style: TextStyle(fontSize: 16),
             ),
             const SizedBox(height: 32),
