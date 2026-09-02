@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Dating Chat - Download App</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #f8f9fa;
+        }
+        .header {
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 16px 24px;
+        }
+        .header h1 {
+            font-size: 20px;
+            color: #5f6368;
+            font-weight: 400;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+        .app-card {
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+        }
+        .app-header {
+            display: flex;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+        .app-icon img {
+            width: 100%;
+            height: 100%;
+            border-radius: 20px;
+        }
+        .app-info {
+            flex: 1;
+        }
+        .app-title {
+            font-size: 28px;
+            font-weight: 400;
+            color: #202124;
+            margin-bottom: 4px;
+        }
+        .app-developer {
+            color: #01875f;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+        .rating {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+        .rating-box {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .rating-number {
+            font-size: 14px;
+            color: #5f6368;
+        }
+        .stars {
+            color: #01875f;
+            font-size: 12px;
+        }
+        .download-btn {
+            background: #01875f;
+            color: white;
+            border: none;
+            padding: 12px 32px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: background 0.2s;
+        }
+        .download-btn:hover {
+            background: #017a54;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .info-item {
+            text-align: center;
+            padding: 16px;
+        }
+        .info-label {
+            font-size: 12px;
+            color: #5f6368;
+            margin-bottom: 4px;
+        }
+        .info-value {
+            font-size: 14px;
+            color: #202124;
+            font-weight: 500;
+        }
+        .section-title {
+            font-size: 20px;
+            color: #202124;
+            margin-bottom: 16px;
+            font-weight: 400;
+        }
+        .about-text {
+            color: #5f6368;
+            line-height: 1.6;
+            margin-bottom: 16px;
+        }
+        .features {
+            display: grid;
+            gap: 12px;
+        }
+        .feature {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        .feature-icon {
+            font-size: 24px;
+        }
+        .feature-text {
+            color: #202124;
+            font-size: 14px;
+        }
+        .screenshots {
+            display: flex;
+            gap: 16px;
+            overflow-x: auto;
+            padding: 16px 0;
+        }
+        .screenshot {
+            width: 200px;
+            height: 400px;
+            border-radius: 12px;
+            flex-shrink: 0;
+            object-fit: cover;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .warning-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 16px;
+            margin: 24px 0;
+            border-radius: 4px;
+        }
+        .warning-title {
+            font-weight: 500;
+            color: #856404;
+            margin-bottom: 8px;
+        }
+        .download-status {
+            display: none;
+            margin-top: 12px;
+            padding: 12px;
+            background: #e8f5e9;
+            border-radius: 8px;
+            color: #2e7d32;
+            font-size: 14px;
+        }
+        @media (max-width: 768px) {
+            .container {
+                padding: 16px;
+            }
+            .app-header {
+                flex-direction: column;
+                align-items: center;
+                text-align: center;
+            }
+            .app-icon {
+                width: 100px;
+                height: 100px;
+                font-size: 50px;
+            }
+            .app-title {
+                font-size: 24px;
+            }
+            .rating {
+                flex-direction: column;
+                gap: 8px;
+            }
+            .download-btn {
+                width: 100%;
+                padding: 16px;
+                font-size: 18px;
+            }
+            .info-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .screenshot {
+                width: 160px;
+                height: 320px;
+            }
+        }
+    </style>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const downloadBtn = document.getElementById('downloadBtn');
+            const downloadStatus = document.getElementById('downloadStatus');
+            
+            downloadBtn.addEventListener('click', function() {
+                downloadStatus.style.display = 'block';
+                downloadStatus.innerHTML = '⏳ Downloading... Check notification bar';
+                
+                setTimeout(function() {
+                    downloadStatus.innerHTML = '✓ Download complete! Tap the APK notification to install';
+                }, 3000);
+            });
+        });
+    </script>
+</head>
+<body>
+    <div class="header">
+        <h1>Dating Connect</h1>
+    </div>
+
+    <div class="container">
+        <div class="app-card">
+            <div class="app-header">
+                <div class="app-icon"><img src="/icons/Icon-512.png" alt="Dating Connect App Icon"></div>
+                <div class="app-info">
+                    <h1 class="app-title">Dating Connect</h1>
+                    <div class="app-developer">Digiskills Consult</div>
+                    <div class="rating">
+                        <div class="rating-box">
+                            <span class="rating-number">4.5</span>
+                            <span class="stars">★★★★★</span>
+                        </div>
+                        <div class="rating-number">5M+ downloads</div>
+                        <div class="rating-number">Rated for 18+</div>
+                    </div>
+                    <a href="/app.apk" class="download-btn" id="downloadBtn">
+                        Install
+                    </a>
+                    <div id="downloadStatus" class="download-status">
+                        ✓ Downloading... Tap notification when complete to install
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">Downloads</div>
+                    <div class="info-value">5,000,000+</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Size</div>
+                    <div class="info-value">35 MB</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Version</div>
+                    <div class="info-value">1.0.0</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Updated</div>
+                    <div class="info-value">Jan 2025</div>
+                </div>
+            </div>
+
+            <div class="warning-box">
+                <div class="warning-title">📥 How to Install</div>
+                <div class="warning-text">
+                    <strong>Step 1:</strong> Click the "Install" button below<br>
+                    <strong>Step 2:</strong> If your browser shows "This type of file can harm your device", tap "Download anyway"<br>
+                    <strong>Step 3:</strong> Once download completes, tap the notification or open your Downloads folder<br>
+                    <strong>Step 4:</strong> Tap the APK file to install<br>
+                    <strong>Step 5:</strong> If prompted, enable "Install from Unknown Sources" in Settings<br>
+                    <strong>Step 6:</strong> Tap "Install" and enjoy! 🎉
+                </div>
+            </div>
+        </div>
+
+        <div class="app-card">
+            <h2 class="section-title">About this app</h2>
+            <p class="about-text">
+                Connect with people worldwide through Global Dating Chat. Meet new friends, find romance, 
+                and build meaningful relationships with our global community. Features live streaming, 
+                video calls, and real-time messaging.
+            </p>
+            <div class="features">
+                <div class="feature">
+                    <span class="feature-icon">💬</span>
+                    <span class="feature-text">Real-time messaging and chat</span>
+                </div>
+                <div class="feature">
+                    <span class="feature-icon">📹</span>
+                    <span class="feature-text">Live streaming and video calls</span>
+                </div>
+                <div class="feature">
+                    <span class="feature-icon">📸</span>
+                    <span class="feature-text">Photo sharing and galleries</span>
+                </div>
+                <div class="feature">
+                    <span class="feature-icon">🪙</span>
+                    <span class="feature-text">Earn coins by watching ads</span>
+                </div>
+                <div class="feature">
+                    <span class="feature-icon">⚡</span>
+                    <span class="feature-text">Boost your profile for visibility</span>
+                </div>
+                <div class="feature">
+                    <span class="feature-icon">🌍</span>
+                    <span class="feature-text">Connect with users worldwide</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="app-card">
+            <h2 class="section-title">Screenshots</h2>
+            <div class="screenshots">
+                <img src="/screenshots/Screenshot1.png" class="screenshot" alt="Screenshot 1">
+                <img src="/screenshots/Screenshot2.png" class="screenshot" alt="Screenshot 2">
+                <img src="/screenshots/Screenshot3.png" class="screenshot" alt="Screenshot 3">
+                <img src="/screenshots/Screenshot4.png" class="screenshot" alt="Screenshot 4">
+                <img src="/screenshots/Screenshot5.png" class="screenshot" alt="Screenshot 5">
+                <img src="/screenshots/Screenshot6.png" class="screenshot" alt="Screenshot 6">
+                <img src="/screenshots/Screenshot7.png" class="screenshot" alt="Screenshot 7">
+            </div>
+        </div>
+
+        <div class="app-card">
+            <h2 class="section-title">Data safety</h2>
+            <p class="about-text">
+                Safety starts with understanding how developers collect and share your data. 
+                Data privacy and security practices may vary based on your use, region, and age.
+            </p>
+            <div class="features">
+                <div class="feature">
+                    <span class="feature-icon">🔒</span>
+                    <span class="feature-text">Data is encrypted in transit</span>
+                </div>
+                <div class="feature">
+                    <span class="feature-icon">🗑️</span>
+                    <span class="feature-text">You can request data deletion</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
