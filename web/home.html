@@ -2,14 +2,14 @@
   <base href="$FLUTTER_BASE_HREF">
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="Global Dating Chat - Connect with people worldwide">
+  <meta name="description" content="Dating Connect - Connect with people worldwide">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="Global Dating Chat">
+  <meta name="apple-mobile-web-app-title" content="Dating Connect">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
   <link rel="icon" type="image/png" href="favicon.png">
-  <title>Global Dating Chat</title>
+  <title>Dating Connect</title>
   <link rel="manifest" href="manifest.json">
   <style>
     body {
@@ -26,22 +26,36 @@
       background: #9400D3;
       display: flex;
       align-items: center;
-      justify-content: center;
-      gap: 30px;
+      justify-content: space-between;
+      padding: 0 24px;
       z-index: 1000;
       box-shadow: 0 2px 8px rgba(148,0,211,0.3);
+    }
+    .web-nav-title {
+      color: white;
+      font-size: 18px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .web-nav-title img {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
     }
     .web-nav a {
       color: white;
       text-decoration: none;
-      font-size: 16px;
-      font-weight: 500;
+      font-size: 14px;
+      font-weight: 600;
       padding: 8px 16px;
       border-radius: 8px;
+      background: #ff6b6b;
       transition: all 0.2s;
     }
-    .web-nav a:hover, .web-nav a.active {
-      background: rgba(255,255,255,0.2);
+    .web-nav a:hover {
+      opacity: 0.9;
       transform: translateY(-1px);
     }
     .flutter-container {
@@ -61,8 +75,11 @@
 </head>
 <body>
   <div class="web-nav">
-    <a href="/home.html" class="active">Home</a>
-    <a href="/home.html">Open App</a>
+    <div class="web-nav-title">
+      <img src="favicon.png" alt="Dating Connect Icon">
+      <span>Dating Connect</span>
+    </div>
+    <a href="https://play.google.com/store/apps/details?id=datingconnect.app">Get on Google Play</a>
   </div>
   
   <div class="flutter-container">
