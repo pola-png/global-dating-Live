@@ -4,6 +4,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../components/avatar_widget.dart';
+import '../components/report_dialog.dart';
 import '../services/supabase_service.dart';
 import '../services/account_deletion_service.dart';
 import '../services/storage_service.dart';
@@ -480,6 +481,22 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
             overflow: TextOverflow.ellipsis,
           ),
           centerTitle: true,
+          actions: [
+            if (!_isOwnProfile)
+              IconButton(
+                icon: const Icon(LucideIcons.flag, color: Colors.white),
+                tooltip: 'Report User',
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (ctx) => ReportDialog(
+                      reportedUserId: _profile!['id'].toString(),
+                      context: 'profile',
+                    ),
+                  );
+                },
+              ),
+          ],
           flexibleSpace: FlexibleSpaceBar(
             background: Container(
               decoration: BoxDecoration(
