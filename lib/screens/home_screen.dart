@@ -85,11 +85,6 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
       return;
     }
 
-    if (!SubscriptionService.hasActiveSubscription) {
-      Navigator.pushReplacementNamed(context, '/paywall');
-      return;
-    }
-
     await _fetchCurrentUserProfile();
     await _refreshProfiles();
   }

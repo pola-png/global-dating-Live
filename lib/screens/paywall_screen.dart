@@ -192,6 +192,14 @@ class _PaywallScreenState extends State<PaywallScreen> {
     );
   }
 
+  void _dismiss() {
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    } else {
+      Navigator.pushReplacementNamed(context, '/home');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -246,26 +254,33 @@ class _PaywallScreenState extends State<PaywallScreen> {
                         )
                       : null,
                   actions: [
-                    Container(
-                      margin: const EdgeInsets.only(right: 12),
-                      decoration: BoxDecoration(
-                        color: colorScheme.surfaceContainerHigh,
-                        shape: BoxShape.circle,
-                      ),
-                      child: IconButton(
+                    Padding(
+                      padding: const EdgeInsets.only(right: 16),
+                      child: TextButton.icon(
+                        style: TextButton.styleFrom(
+                          backgroundColor: colorScheme.surfaceContainerHighest,
+                          foregroundColor: colorScheme.onSurface,
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                            side: BorderSide(
+                              color: colorScheme.outline.withValues(alpha: 0.3),
+                            ),
+                          ),
+                        ),
+                        onPressed: _dismiss,
                         icon: Icon(
                           Icons.close_rounded,
-                          color: colorScheme.onSurface,
-                          size: 26,
+                          color: colorScheme.primary,
+                          size: 20,
                         ),
-                        onPressed: () {
-                          if (Navigator.canPop(context)) {
-                            Navigator.pop(context);
-                          } else {
-                            Navigator.pushReplacementNamed(context, '/home');
-                          }
-                        },
-                        tooltip: 'Dismiss / Continue Free',
+                        label: const Text(
+                          'Dismiss',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -506,39 +521,66 @@ class _PaywallScreenState extends State<PaywallScreen> {
                   ),
                 ),
 
-                // Subscribe button — disabled while billing is loading
+                // Action buttons: Subscribe & Dismiss / Continue Free
                 Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 24.0, vertical: 20.0),
-                  child: FilledButton(
-                    onPressed:
-                        (_isLoading || _billingLoading) ? null : _purchase,
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size.fromHeight(56),
-                      backgroundColor: colorScheme.primary,
-                      foregroundColor: colorScheme.onPrimary,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      elevation: 2,
-                    ),
-                    child: _isLoading
-                        ? SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.5,
-                              color: colorScheme.onPrimary,
-                            ),
-                          )
-                        : const Text(
-                            'Subscribe',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.5,
-                            ),
+                  padding: const EdgeInsets.fromLTRB(24.0, 12.0, 24.0, 20.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      FilledButton(
+                        onPressed:
+                            (_isLoading || _billingLoading) ? null : _purchase,
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size.fromHeight(54),
+                          backgroundColor: colorScheme.primary,
+                          foregroundColor: colorScheme.onPrimary,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
                           ),
+                          elevation: 2,
+                        ),
+                        child: _isLoading
+                            ? SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: colorScheme.onPrimary,
+                                ),
+                              )
+                            : const Text(
+                                'Subscribe Now',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                      ),
+                      const SizedBox(height: 10),
+                      OutlinedButton.icon(
+                        onPressed: _dismiss,
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(48),
+                          side: BorderSide(
+                            color: colorScheme.outline.withValues(alpha: 0.4),
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        icon: Icon(Icons.close_rounded,
+                            size: 20, color: colorScheme.onSurfaceVariant),
+                        label: Text(
+                          'Dismiss / Continue Free',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: colorScheme.onSurface,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],

@@ -62,11 +62,7 @@ class _SplashScreenState extends State<SplashScreen> {
       } else if (!isOfAge) {
         Navigator.pushReplacementNamed(context, '/age-gate');
       } else if (hasSession) {
-        if (SubscriptionService.hasActiveSubscription) {
-          Navigator.pushReplacementNamed(context, '/home');
-        } else {
-          Navigator.pushReplacementNamed(context, '/paywall');
-        }
+        Navigator.pushReplacementNamed(context, '/home');
       } else {
         Navigator.pushReplacementNamed(context, '/login');
       }

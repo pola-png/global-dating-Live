@@ -25,6 +25,8 @@ class _ReportDialogState extends State<ReportDialog> {
   bool _isSubmitting = false;
 
   final _reasons = {
+    'csae_child_safety': 'Child Safety / CSAE Violation',
+    'underage_user': 'Underage User (Under 18)',
     'harassment': 'Harassment',
     'spam': 'Spam',
     'inappropriate_content': 'Inappropriate Content',

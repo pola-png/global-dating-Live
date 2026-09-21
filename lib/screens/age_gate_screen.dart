@@ -17,9 +17,7 @@ class AgeGateScreen extends StatelessWidget {
       if (!context.mounted) return;
       
       if (hasSession) {
-        Navigator.of(context).pushReplacementNamed(
-          SubscriptionService.hasActiveSubscription ? '/home' : '/paywall'
-        );
+        Navigator.of(context).pushReplacementNamed('/home');
       } else {
         Navigator.of(context).pushReplacementNamed('/login');
       }
