@@ -16,9 +16,6 @@
 # Cached network image
 -keep class io.flutter.plugins.cached_network_image.** { *; }
 
-# Disable obfuscation
--dontobfuscate
-
 # Ignore missing Play Core classes
 -dontwarn com.google.android.play.core.**
 -keep class com.google.android.play.core.** { *; }
