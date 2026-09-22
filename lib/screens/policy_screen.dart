@@ -5,7 +5,7 @@ class PolicyScreen extends StatelessWidget {
   const PolicyScreen({super.key});
 
   Future<void> _openWebStandards() async {
-    final Uri url = Uri.parse('https://global-dating-live-three.vercel.app/');
+    final Uri url = Uri.parse('https://dating-connect-three.vercel.app/child-safety-standards');
     if (await canLaunchUrl(url)) {
       await launchUrl(url, mode: LaunchMode.externalApplication);
     }
