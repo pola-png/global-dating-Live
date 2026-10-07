@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
 
 import '../services/supabase_service.dart';
 import '../services/admob_service.dart';
@@ -26,53 +24,60 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _startInitialization() async {
-    final startTime = DateTime.now();
-
     try {
-      // Step 1: Run core platform initializations in parallel
-      await Future.wait([
-        _initFirebase(),
-        _initAdmob(),
-        GooglePlayBillingService.instance.init(),
-        SupabaseService.initialize(),
-      ]);
+      // Step 1: Initialize core Supabase service with a fast 2-second timeout
+      try {
+        await SupabaseService.initialize().timeout(
+          const Duration(seconds: 2),
+          onTimeout: () {
+            debugPrint('Supabase init timed out - proceeding to screen');
+          },
+        );
+      } catch (e) {
+        debugPrint('Supabase init error: $e');
+      }
 
-      // Initialize subscriptions after Supabase is ready
-      await SubscriptionService.init();
+      // Step 2: Fire platform services asynchronously in the background (non-blocking)
+      _initBackgroundServices();
 
-      // Check connectivity and preferences
-      final connectivityResult = await Connectivity().checkConnectivity();
-      final hasConnectivity = !connectivityResult.contains(ConnectivityResult.none);
-      
+      // Step 3: Fast local preferences check
       final prefs = await SharedPreferences.getInstance();
       final bool isOfAge = prefs.getBool('is_of_age') ?? false;
-      final hasSession = await SessionStore.isUserLoggedInLocally();
-
-      // Ensure splash screen displays for at least 1.0 second for branding animation
-      final elapsed = DateTime.now().difference(startTime);
-      if (elapsed.inMilliseconds < 1000) {
-        await Future.delayed(Duration(milliseconds: 1000 - elapsed.inMilliseconds));
-      }
+      final bool isLogged = prefs.getBool('is_user_logged_in') ?? false;
 
       if (!mounted) return;
 
-      // Navigate to correct starting screen
-      if (!hasConnectivity) {
-        Navigator.pushReplacementNamed(context, '/offline');
-      } else if (!isOfAge) {
+      // Navigate to correct starting screen instantly (under 300ms)
+      if (!isOfAge) {
         Navigator.pushReplacementNamed(context, '/age-gate');
-      } else if (hasSession) {
+      } else if (isLogged) {
         Navigator.pushReplacementNamed(context, '/home');
       } else {
         Navigator.pushReplacementNamed(context, '/login');
       }
     } catch (e) {
       debugPrint('Initialization error: $e');
-      // Fail-safe redirect to login
       if (mounted) {
-        Navigator.pushReplacementNamed(context, '/login');
+        Navigator.pushReplacementNamed(context, '/age-gate');
       }
     }
+  }
+
+  void _initBackgroundServices() {
+    Future.microtask(() async {
+      try {
+        await _initFirebase().timeout(const Duration(seconds: 3));
+      } catch (_) {}
+      try {
+        await _initAdmob().timeout(const Duration(seconds: 3));
+      } catch (_) {}
+      try {
+        await GooglePlayBillingService.instance.init().timeout(const Duration(seconds: 3));
+      } catch (_) {}
+      try {
+        await SubscriptionService.init().timeout(const Duration(seconds: 3));
+      } catch (_) {}
+    });
   }
 
   Future<void> _initFirebase() async {
@@ -108,27 +113,6 @@ class _SplashScreenState extends State<SplashScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Pulsing heart logo
-            Container(
-              padding: const EdgeInsets.all(28),
-              decoration: BoxDecoration(
-                color: colorScheme.primary.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                LucideIcons.heart,
-                color: colorScheme.primary,
-                size: 72,
-              ),
-            )
-            .animate(onPlay: (controller) => controller.repeat(reverse: true))
-            .scale(
-              begin: const Offset(0.9, 0.9),
-              end: const Offset(1.1, 1.1),
-              duration: 800.ms,
-              curve: Curves.easeInOut,
-            ),
-            const SizedBox(height: 32),
             Text(
               'Dating Connect',
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(

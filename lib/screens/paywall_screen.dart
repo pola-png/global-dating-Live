@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../services/google_play_billing_service.dart';
 import '../services/subscription_service.dart';
 import 'home_screen.dart';

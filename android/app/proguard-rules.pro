@@ -1,3 +1,10 @@
+# Application package
+-keep class datingconnect.app.** { *; }
+
+# Play Billing Library
+-keep class com.android.billingclient.** { *; }
+-dontwarn com.android.billingclient.**
+
 # Flutter wrapper
 -keep class io.flutter.app.** { *; }
 -keep class io.flutter.plugin.**  { *; }
@@ -5,7 +12,6 @@
 -keep class io.flutter.view.**  { *; }
 -keep class io.flutter.**  { *; }
 -keep class io.flutter.plugins.**  { *; }
-
 
 # Image picker
 -keep class io.flutter.plugins.imagepicker.** { *; }

@@ -1,7 +1,7 @@
 name: dating_connect
 description: "Dating Connect - Connect with people worldwide"
 publish_to: 'none'
-version: 1.0.11+13
+version: 1.0.12+15
 
 environment:
   sdk: '>=3.5.0 <4.0.0'
@@ -10,7 +10,6 @@ dependencies:
   flutter:
     sdk: flutter
   supabase_flutter: ^2.8.0
-  lucide_icons: ^0.257.0
   country_picker: ^2.0.27
   image_picker: ^1.2.0
   cached_network_image: ^3.4.1
@@ -21,7 +20,7 @@ dependencies:
   firebase_messaging: ^16.0.4
   camera: ^0.11.3
   http: ^1.5.0
-  livekit_client: ^2.5.0
+  livekit_client: ^2.13.0
   permission_handler: ^11.0.1
   google_mobile_ads: ^5.2.0
   in_app_purchase: ^3.2.3
@@ -39,9 +38,10 @@ dependencies:
   
   # Performance and utilities
   package_info_plus: ^8.0.2
-  device_info_plus: ^11.1.0
-  connectivity_plus: ^6.1.0
+  device_info_plus: ^12.3.0
+  connectivity_plus: ^7.0.0
   wakelock_plus: ^1.2.8
+  lucide_icons_flutter: ^3.1.20
 
 dev_dependencies:
   flutter_test:

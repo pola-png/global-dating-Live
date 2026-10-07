@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
@@ -29,6 +29,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
   bool _fetchCompleted = false;
   BannerAd? _bannerAd;
   bool _adLoaded = false;
+  bool _isMenuOpen = false;
 
   @override
   bool get wantKeepAlive => true;
@@ -230,73 +231,403 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Scaffold(
-      backgroundColor: colorScheme.surface,
-      appBar: AppBar(
-        title: Row(
-          children: [
-            Icon(LucideIcons.heart, color: colorScheme.primary, size: 24),
-            const SizedBox(width: 8),
-            Text(
-              'Dating Connect',
-              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 22, color: colorScheme.onSurface),
+    return PopScope(
+      canPop: !_isMenuOpen,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && _isMenuOpen) {
+          setState(() {
+            _isMenuOpen = false;
+          });
+        }
+      },
+      child: Scaffold(
+        backgroundColor: colorScheme.surface,
+        appBar: AppBar(
+          title: Row(
+            children: [
+              Icon(LucideIcons.heart, color: colorScheme.primary, size: 24),
+              const SizedBox(width: 8),
+              Text(
+                'Dating Connect',
+                style: TextStyle(fontWeight: FontWeight.w900, fontSize: 22, color: colorScheme.onSurface),
+              ),
+            ],
+          ),
+          backgroundColor: colorScheme.surfaceContainer,
+          elevation: 0,
+          automaticallyImplyLeading: false,
+          actions: [
+            IconButton(
+              icon: AnimatedRotation(
+                turns: _isMenuOpen ? 0.25 : 0.0,
+                duration: const Duration(milliseconds: 200),
+                child: Icon(
+                  _isMenuOpen ? LucideIcons.x : LucideIcons.ellipsisVertical,
+                  color: _isMenuOpen ? colorScheme.primary : colorScheme.onSurface,
+                ),
+              ),
+              tooltip: _isMenuOpen ? 'Close Menu' : 'Menu & Options',
+              onPressed: () {
+                setState(() {
+                  _isMenuOpen = !_isMenuOpen;
+                });
+              },
             ),
           ],
         ),
-        backgroundColor: colorScheme.surfaceContainer,
-        elevation: 0,
-        automaticallyImplyLeading: false,
-        actions: [
-          IconButton(
-            icon: const Icon(LucideIcons.sparkles, color: Colors.amberAccent),
-            tooltip: 'Subscription Plan',
-            onPressed: () {
-              Navigator.pushNamed(context, '/paywall');
-            },
-          ),
-        ],
-      ),
-      bottomNavigationBar: _buildBottomNav(),
-      body: SafeArea(
-        child: Column(
+        bottomNavigationBar: _buildBottomNav(),
+        body: Stack(
           children: [
-            if (_adLoaded && _bannerAd != null && SubscriptionService.shouldShowGeneralAds)
-              Container(
-                alignment: Alignment.center,
-                width: _bannerAd!.size.width.toDouble(),
-                height: _bannerAd!.size.height.toDouble(),
-                child: AdWidget(ad: _bannerAd!),
-              ),
-            Expanded(
-              child: (_isFetching || !_fetchCompleted) && _profiles.isEmpty
-                  ? Center(child: CircularProgressIndicator(color: colorScheme.primary))
-                  : RefreshIndicator(
-                      onRefresh: _refreshProfiles,
-                      child: _profiles.isEmpty
-                          ? Center(
-                              child: Text(
-                                'No profiles found nearby. Pull to refresh!',
-                                style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 16),
-                              ),
-                            )
-                          : _wrapResponsive(
-                              GridView.builder(
-                                controller: _scrollController,
-                                padding: const EdgeInsets.all(16),
-                                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 2,
-                                  crossAxisSpacing: 14,
-                                  mainAxisSpacing: 14,
-                                  childAspectRatio: 0.72,
+            // Main Content Area
+            Column(
+              children: [
+                Expanded(
+                  child: (_isFetching || !_fetchCompleted) && _profiles.isEmpty
+                      ? Center(child: CircularProgressIndicator(color: colorScheme.primary))
+                      : RefreshIndicator(
+                          onRefresh: _refreshProfiles,
+                          child: _profiles.isEmpty
+                              ? Center(
+                                  child: Text(
+                                    'No profiles found nearby. Pull to refresh!',
+                                    style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 16),
+                                  ),
+                                )
+                              : _wrapResponsive(
+                                  GridView.builder(
+                                    controller: _scrollController,
+                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: 2,
+                                      crossAxisSpacing: 14,
+                                      mainAxisSpacing: 14,
+                                      childAspectRatio: 0.72,
+                                    ),
+                                    itemCount: _profiles.length,
+                                    itemBuilder: (context, index) {
+                                      final profile = _profiles[index];
+                                      return _buildProfileGridTile(profile);
+                                    },
+                                  ),
                                 ),
-                                itemCount: _profiles.length,
-                                itemBuilder: (context, index) {
-                                  final profile = _profiles[index];
-                                  return _buildProfileGridTile(profile);
-                                },
-                              ),
-                            ),
+                        ),
+                ),
+                if (_adLoaded && _bannerAd != null && SubscriptionService.shouldShowGeneralAds)
+                  Container(
+                    alignment: Alignment.center,
+                    width: _bannerAd!.size.width.toDouble(),
+                    height: _bannerAd!.size.height.toDouble(),
+                    child: AdWidget(ad: _bannerAd!),
+                  ),
+              ],
+            ),
+            // Semi-transparent backdrop barrier
+            if (_isMenuOpen)
+              Positioned.fill(
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _isMenuOpen = false;
+                    });
+                  },
+                  child: Container(
+                    color: Colors.black.withValues(alpha: 0.45),
+                  ),
+                ),
+              ),
+            // Slide-in Full Height Side Panel (Touches bottom nav, sits below top bar)
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeOutCubic,
+              top: 0,
+              bottom: 0,
+              right: _isMenuOpen ? 0 : -((MediaQuery.of(context).size.width * 0.88).clamp(320.0, 380.0) + 30),
+              width: (MediaQuery.of(context).size.width * 0.88).clamp(320.0, 380.0),
+              child: _buildRightSideMenu(colorScheme),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRightSideMenu(ColorScheme colorScheme) {
+    return Material(
+      color: colorScheme.surfaceContainerHigh,
+      elevation: 12,
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border(
+            left: BorderSide(
+              color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+              width: 1,
+            ),
+          ),
+        ),
+        child: ListView(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          children: [
+            // VIP Upgrade Card
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFE5A623), Color(0xFFD47C10), Color(0xFF9E4800)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFE5A623).withValues(alpha: 0.3),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.25),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(LucideIcons.crown, color: Colors.white, size: 20),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'VIP Membership',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Unlimited Swipes, Verified Badge & Ad-Free Experience',
+                    style: TextStyle(color: Colors.white, fontSize: 12, height: 1.3),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        setState(() => _isMenuOpen = false);
+                        Navigator.pushNamed(context, '/paywall');
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: const Color(0xFF9E4800),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                      child: const Text(
+                        'Upgrade Now',
+                        style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
+                      ),
                     ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Buy Coins Card
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: Colors.orange.withValues(alpha: 0.3),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(LucideIcons.coins, color: Colors.orange, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Dating Coins',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        ),
+                        Text(
+                          'Send gifts & direct chats',
+                          style: TextStyle(fontSize: 11, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      setState(() => _isMenuOpen = false);
+                      Navigator.pushNamed(context, '/coins');
+                    },
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.orange,
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    ),
+                    child: const Text(
+                      'Get Coins',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 18),
+
+            Padding(
+              padding: const EdgeInsets.only(left: 4, bottom: 8),
+              child: Text(
+                'SAFETY & POLICIES',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.0,
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                ),
+              ),
+            ),
+
+            // Child Safety Standards
+            _buildSideMenuItem(
+              icon: LucideIcons.shieldAlert,
+              iconColor: Colors.redAccent,
+              title: 'Child Safety Standards',
+              subtitle: '18+ Adult-Only & CSAE Policy',
+              onTap: () {
+                setState(() => _isMenuOpen = false);
+                Navigator.pushNamed(context, '/policy');
+              },
+            ),
+
+            // Privacy Policy
+            _buildSideMenuItem(
+              icon: LucideIcons.lock,
+              iconColor: Colors.blueAccent,
+              title: 'Privacy Policy',
+              subtitle: 'Data usage & deletion rights',
+              onTap: () {
+                setState(() => _isMenuOpen = false);
+                Navigator.pushNamed(context, '/policy');
+              },
+            ),
+
+            // Community Guidelines & Rules
+            _buildSideMenuItem(
+              icon: LucideIcons.fileText,
+              iconColor: Colors.purpleAccent,
+              title: 'Community Rules',
+              subtitle: 'Guidelines & standards',
+              onTap: () {
+                setState(() => _isMenuOpen = false);
+                Navigator.pushNamed(context, '/policy');
+              },
+            ),
+
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.only(left: 4, bottom: 8),
+              child: Text(
+                'SUPPORT',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.0,
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                ),
+              ),
+            ),
+
+            // Help & Support
+            _buildSideMenuItem(
+              icon: LucideIcons.lifeBuoy,
+              iconColor: Colors.tealAccent,
+              title: 'Admin Support',
+              subtitle: 'Reach support team',
+              onTap: () {
+                setState(() => _isMenuOpen = false);
+                Navigator.pushNamed(context, '/admin/support');
+              },
+            ),
+
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSideMenuItem({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: iconColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: iconColor, size: 18),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                      color: colorScheme.onSurface,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              LucideIcons.chevronRight,
+              size: 16,
+              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
             ),
           ],
         ),
@@ -504,7 +835,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
   Widget _wrapResponsive(Widget child) {
     return ResponsivePage(
       maxWidth: 960,
-      padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 4),
       child: child,
     );
   }

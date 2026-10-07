@@ -47,16 +47,11 @@ void main() async {
 
   if (!kIsWeb) {
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-    
-    // Set preferred orientations for mobile
     await SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.portraitDown,
     ]);
   }
-
-  // Session verification and other network services run in background
-  SessionStore.refresh();
 
   runApp(const MainApp());
   

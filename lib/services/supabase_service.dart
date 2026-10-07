@@ -23,7 +23,12 @@ class SessionStore {
   static Future<bool> isUserLoggedInLocally() async {
     final prefs = await SharedPreferences.getInstance();
     final localFlag = prefs.getBool(_loggedKey) ?? false;
-    return localFlag && SupabaseService.client.auth.currentSession != null;
+    if (!localFlag) return false;
+    try {
+      return SupabaseService.client.auth.currentSession != null;
+    } catch (_) {
+      return localFlag;
+    }
   }
 
   static Future<void> markLoggedIn(String userId) async {
@@ -34,15 +39,19 @@ class SessionStore {
   static Future<void> markLoggedOut() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_loggedKey, false);
-    await SupabaseService.client.auth.signOut();
+    try {
+      await SupabaseService.client.auth.signOut();
+    } catch (_) {}
   }
 
   static Future<String?> ensureUserId() async {
-    final current = SupabaseService.client.auth.currentUser;
-    if (current != null) {
-      await markLoggedIn(current.id);
-      return current.id;
-    }
+    try {
+      final current = SupabaseService.client.auth.currentUser;
+      if (current != null) {
+        await markLoggedIn(current.id);
+        return current.id;
+      }
+    } catch (_) {}
     return null;
   }
 

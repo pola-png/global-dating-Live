@@ -1,6 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:country_picker/country_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../components/report_dialog.dart';

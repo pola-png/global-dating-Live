@@ -32,7 +32,7 @@ android {
     defaultConfig {
         applicationId = "datingconnect.app"
         minSdk = flutter.minSdkVersion
-        targetSdk = 35
+        targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
         multiDexEnabled = true
@@ -51,8 +51,8 @@ android {
     
     buildTypes {
         release {
-            isMinifyEnabled = true
-            isShrinkResources = true
+            isMinifyEnabled = false
+            isShrinkResources = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -63,6 +63,13 @@ android {
                 signingConfigs.getByName("debug")
             }
         }
+    }
+}
+
+configurations.all {
+    resolutionStrategy {
+        force("com.android.billingclient:billing:8.0.0")
+        force("com.android.billingclient:billing-ktx:8.0.0")
     }
 }
 
@@ -77,4 +84,5 @@ dependencies {
     implementation("androidx.activity:activity-ktx:1.10.1")
     // SplashScreen compat library for proper API-31 splash screen support.
     implementation("androidx.core:core-splashscreen:1.0.1")
+    implementation("com.android.billingclient:billing-ktx:8.0.0")
 }
