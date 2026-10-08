@@ -113,6 +113,20 @@ class _SplashScreenState extends State<SplashScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            Image.asset(
+              'assets/icon/app_icon.png',
+              width: 96,
+              height: 96,
+              errorBuilder: (_, __, ___) => Icon(
+                Icons.favorite_rounded,
+                size: 80,
+                color: colorScheme.primary,
+              ),
+            )
+            .animate()
+            .scale(duration: 400.ms, curve: Curves.easeOutBack)
+            .fadeIn(duration: 400.ms),
+            const SizedBox(height: 20),
             Text(
               'Dating Connect',
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
@@ -124,11 +138,11 @@ class _SplashScreenState extends State<SplashScreen> {
             .animate()
             .fadeIn(duration: 600.ms)
             .slideY(begin: 0.2, end: 0, duration: 600.ms, curve: Curves.easeOutQuad),
-            const SizedBox(height: 48),
+            const SizedBox(height: 36),
             // Subdued indicator
             SizedBox(
-              width: 40,
-              height: 40,
+              width: 32,
+              height: 32,
               child: CircularProgressIndicator(
                 strokeWidth: 3,
                 color: colorScheme.primary.withValues(alpha: 0.5),
